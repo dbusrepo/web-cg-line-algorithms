@@ -57,7 +57,7 @@ class EnginePanelGui extends PanelGui {
       const max = this.fpsMonitor.controller_.valueController.props_?.get('maxValue');
       if (max && max <= fps) {
         // @ts-ignore
-        this.fpsMonitor.controller_.valueController.props_.set('maxValue', fps * 1.1);
+        this.fpsMonitor.controller_.valueController.props_.set('maxValue', fps * 2);
       }
     }
     // this.fpsMonitor.controller_.valueController.props_.set('maxValue', 10000);
