@@ -1,6 +1,7 @@
 // import assert from 'assert';
 import { StatsPanel } from './statsPanel';
 import { StatsConfig } from './statsConfig';
+import { dragElement } from '../drag';
 
 enum StatsNames {
   FPS = 'FPS',
@@ -24,12 +25,18 @@ class Stats {
     this.cfg = structuredClone(cfg);
     this.container = document.createElement('div');
     this.container.classList.add('stats-container');
-    // this.schedule_mem_measure(); // TODO move ? remove?
+    dragElement(this.container);
+    // this.schedule_mem_measure(); // TODO (re)move ?
+  }
+
+  setPos(x: number, y: number) {
+    this.container.style.left = `${x}px`;
+    this.container.style.top = `${y}px`;
   }
 
   addPanel(statsPanel: StatsPanel) {
     this.panels.set(statsPanel.Title, statsPanel);
-    this.container.appendChild(statsPanel.dom);
+    statsPanel.appendAsChild(this.container);
   }
 
   setParentNode(parentNode: HTMLElement): void {
@@ -38,12 +45,14 @@ class Stats {
   }
 
   hide() {
-    this.container.style.display = 'none';
+    this.container.style.visibility = 'hidden';
+    // this.container.style.display = 'none';
     // this.container.style.zIndex = '1';
   }
 
   show() {
-    this.container.style.display = 'block';
+    this.container.style.visibility = 'visible';
+    // this.container.style.display = 'block';
     // this.container.style.zIndex = '10000';
   }
 

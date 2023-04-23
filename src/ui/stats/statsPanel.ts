@@ -4,8 +4,8 @@ const PR = Math.round(window.devicePixelRatio || 1); // #pixels per col
 
 // const CSS_WIDTH = 80 * 5;
 // const CSS_HEIGHT = 48 * 5;
-const CSS_WIDTH = 80 * 1.3;
-const CSS_HEIGHT = 48 * 1.3;
+const CSS_WIDTH = 80 * 1.1;
+const CSS_HEIGHT = 48 * 1.1;
 
 const WIDTH = 80 * PR;
 const HEIGHT = 48 * PR;
@@ -53,6 +53,7 @@ class StatsPanel {
     this.canvas.height = HEIGHT;
     this.canvas.style.width = `${CSS_WIDTH}px`;
     this.canvas.style.height = `${CSS_HEIGHT}px`;
+    this.canvas.style.display = 'inline-block';
     this.title = this.cfg.title;
     this.fgCol = this.cfg.fg;
     this.bgCol = this.cfg.bg;
@@ -89,9 +90,13 @@ class StatsPanel {
     return this.title;
   }
 
-  get dom(): HTMLCanvasElement {
-    return this.canvas;
+  appendAsChild(parent: HTMLElement): void {
+    parent.appendChild(this.canvas);
   }
+
+  // get dom(): HTMLCanvasElement {
+  //   return this.canvas;
+  // }
 
   private drawGraphBackground(): void {
     this.context.fillStyle = this.fgCol;

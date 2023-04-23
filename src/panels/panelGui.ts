@@ -123,13 +123,24 @@ abstract class PanelGui {
   protected abstract addTweakPaneOptions(): void;
 
   protected addStatsOpt(): void {
-    this.statsInput = this.tweakPane.addInput(
+    const statsFolder = this.tweakPane.addFolder({
+      title: 'Stats',
+      expanded: false,
+    });
+    this.statsInput = statsFolder.addInput(
       this.tweakOptions,
       PanelTweakOptionsKeys.STATS,
     );
     this.statsInput.on('change', (ev) => {
       this.panel.setStatsVisible(ev.value);
       PanelGui.updateStatsOptPanels(this);
+    });
+    const btn = statsFolder.addButton({
+      title: 'Move top-left',
+      // label: '',   // optional
+    });
+    btn.on('click', () => {
+      this.panel.Stats.setPos(0, 0);
     });
   }
 

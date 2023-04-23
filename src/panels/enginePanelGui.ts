@@ -39,8 +39,8 @@ class EnginePanelGui extends PanelGui {
         interval: 100,
         min: 0,
         // max: 200,
-        max: 10000,
-      },
+        // max: 1000,
+      }
     );
     // https://github.com/cocopon/tweakpane/issues/415
     // disable monitor interval and update it only in updateFps ?
@@ -49,6 +49,18 @@ class EnginePanelGui extends PanelGui {
 
   updateFps(fps: number) {
     this.tweakOptions[EnginePanelTweakOptionsKeys.FPS] = fps;
+    this.fpsMonitor.label = `${fps.toFixed(0)} FPS`;
+    // https://github.com/cocopon/tweakpane/issues/371
+    // TODO:
+    {
+      // @ts-ignore
+      const max = this.fpsMonitor.controller_.valueController.props_?.get('maxValue');
+      if (max && max <= fps) {
+        // @ts-ignore
+        this.fpsMonitor.controller_.valueController.props_.set('maxValue', fps * 2);
+      }
+    }
+    // this.fpsMonitor.controller_.valueController.props_.set('maxValue', 10000);
     this.fpsMonitor.refresh();
   }
 

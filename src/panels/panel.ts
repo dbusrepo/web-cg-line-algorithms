@@ -841,6 +841,10 @@ abstract class Panel {
     this.stats.isVisible = value;
   }
 
+  public get Stats(): Stats {
+    return this.stats;
+  }
+
   get isConsoleOpen(): boolean {
     return this.cfg.consoleConfig.isOpen;
   }
