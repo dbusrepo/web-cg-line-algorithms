@@ -43,8 +43,6 @@ class StatsPanel {
   private heightScaleFactor: number;
   // private heightRescaleThreshold: number;
   private curIdx: number; // cur update index, inc at every update
-  private maxDeque: number[]; // deque values to impl max of last N values
-  private maxDequeIdx: number[]; // deque indices
 
   constructor(cfg: StatsPanelConfig) {
     this.cfg = cfg;
@@ -82,8 +80,6 @@ class StatsPanel {
     // this.heightRescaleThreshold = 0;
     this.nextIdx = 0;
     this.curIdx = 0;
-    this.maxDeque = [];
-    this.maxDequeIdx = [];
   }
 
   get Title(): string {
@@ -113,7 +109,7 @@ class StatsPanel {
 
   // private checkDownRescale(): boolean {
   //   // downscale if max value is less than 2/3 of the first third of the graph height
-  //   const res = this._maxDeque[0] < this.downScaleBound();
+  //   const res = this.maxDeque[0] < this.downScaleBound();
   //   // return res;
   //   return false;
   // }
@@ -231,21 +227,6 @@ class StatsPanel {
     this.context.fillRect(GRAPH_X + GRAPH_WIDTH - PR, GRAPH_Y, PR, hUpper);
 
     this.curIdx++;
-  }
-
-  private updateMaxDeque(value: number): void {
-    const deque = this.maxDeque;
-    const dequeIdx = this.maxDequeIdx;
-    while (dequeIdx.length && dequeIdx[0] < this.curIdx - CSS_GRAPH_WIDTH) {
-      deque.shift();
-      dequeIdx.shift();
-    }
-    while (deque.length && deque[deque.length - 1] <= value) {
-      deque.pop();
-      dequeIdx.pop();
-    }
-    deque.push(value);
-    dequeIdx.push(this.curIdx);
   }
 }
 
