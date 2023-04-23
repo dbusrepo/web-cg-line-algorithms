@@ -16,6 +16,19 @@ import {
 } from '../../common';
 import { mainConfig } from '../../config/mainConfig';
 
+import { initFrameParams } from '../gfx/frameParams';
+import {
+  drawLineBresIntBi,
+  drawLineBresIntBiSym2,
+  drawLineBresIntBiSym,
+  drawLineBresInt,
+  drawLineBresFloat,
+  drawLineDDA,
+  drawLineDDAFixed,
+  drawLine,
+} from '../gfx/lines';
+import { fillBackgrnd } from '../gfx/backgrnd';
+
 type WasmViews = WasmUtils.views.WasmViews;
 
 type WasmEngineConfig = {
@@ -252,12 +265,96 @@ class WasmEngine {
   public render() {
     this.syncWorkers();
     try {
-      this.wasmRun.WasmModules.engine.render();
+      // this.wasmRun.WasmModules.engine.render();
+      this.drawLines();
     } catch (e) {
       console.error(e);
     }
     this.waitWorkers();
     this.drawFrame();
+  }
+
+  private drawLines() {
+    // this._wasmRun.wasmModules.engine.run();
+    const { frameWidth, frameHeight } = this.wasmRunCfg;
+    const { syncArr, sleepArr, frameBufferRGBA } = this.wasmRun.WasmViews;
+    initFrameParams(frameBufferRGBA, frameWidth, frameHeight);
+    fillBackgrnd(0xff_00_00_00);
+    // const wIdx = 0;
+    // sleep(sleepArr, wIdx, 16);
+    // console.log('Draw line: ');
+    // drawHLine(10, 80, 20, 0xff_00_00_ff); // ABGR
+    // drawHLine(80, 20, 20, 0xff_00_00_ff);
+    // drawYLine(20, 10, 80, 0xff_00_00_ff);
+    // drawLine(10, 10, 50, 50, 0xff_00_00_ff);
+    // drawLine(50, 50, 10, 10, 0xff_00_00_ff);
+    // drawLine(10, 30, 80, 15, 0xff_00_00_ff);
+    // drawLine(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLine(15, 10, 30, 80, 0xff_ff_00_ff);
+    // drawLine(30, 10, 15, 80, 0xff_00_00_ff);
+
+    // drawLineBase(10, 25, 140, 10, 0xff_ff_ff_ff);
+    // drawLine(10, 25, 140, 10, 0xff_00_00_ff);
+
+    // drawLineBase(10, 25, 140, 10, 0xff_ff_ff_ff);
+    // drawLineBresFloat(10, 25, 140, 10, 0xff_00_00_ff);
+    // drawLineBresFloat(10, 25, 140, 10, 0xff_00_ff_ff);
+    // drawLineBresInt(10, 25, 140, 10, 0xff_00_ff_ff);
+    // drawLineBresInt(10, 25, 140, 20, 0xff_00_ff_ff);
+    // drawLineDDAFixed(10, 25, 140, 20, 0xff_00_00_ff);
+
+    // drawLineDDA(10, 25, 150, 1, 0xff_00_ff_ff);
+    // drawLineBresInt(10, 25, 150, 1, 0xff_00_00_ff);
+    // drawLineBresInt(10, 25, 150, 1, 0xff_00_00_ff);
+    // drawLineDDAFixed(10, 25, 150, 1, 0xff_00_00_ff);
+
+    // drawLineDDA(10, 25, 23, 20, 0xff_00_ff_ff);
+    // drawLineDDAFixed(10, 25, 23, 20, 0xff_00_00_ff);
+
+    // drawLineDDA(20, 10, 30, 15, 0xff_00_ff_ff);
+    // drawLineDDAFixed(20, 10, 30, 15, 0xff_00_00_ff);
+
+    // diff btw dda and bres! -> req fix with 0.0001 in bres err init/test
+    // drawLineBresFloat(10, 15, 80, 30, 0xff_ff_ff_ff);
+    // drawLineDDA(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLineBresFloat(15, 10, 30, 80, 0xff_ff_ff_ff);
+    // drawLineDDA(15, 10, 30, 80, 0xff_00_00_ff);
+
+    // drawLineBresFloat(5, 55, 50, 0, 0xff_ff_ff_ff);
+    // drawLineDDA(5, 55, 50, 0, 0xff_00_00_ff);
+
+    // drawLineBresFloat(140, 10, 10, 25, 0xff_00_00_ff);
+    // drawLineDDA(140, 10, 10, 25, 0xff_00_00_ff);
+    // drawLineBresInt(140, 10, 10, 25, 0xff_00_00_ff);
+
+    // 2 points:
+    // drawLineBresFloat(5, 55, 5, 55, 0xff_00_00_ff);
+    // drawLineDDA(50, 0, 50, 0, 0xff_00_00_ff);
+
+    // drawLineBresInt(10, 15, 80, 30, 0xff_ff_ff_ff);
+    // drawLineBresFloat(10, 15, 80, 30, 0xff_00_ff_ff);
+    // drawLineDDAFixed(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLineDDA(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLineBresFloat(15, 10, 30, 80, 0xff_ff_ff_ff);
+    // drawLineDDA(15, 10, 30, 80, 0xff_00_00_ff);
+
+    // drawLineBresInt(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLineBresIntBi(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLineBresIntBiSym2(10, 15, 80, 30, 0xff_00_00_ff);
+    // drawLineBresIntBiSym(10, 15, 80, 30, 0xff_00_ff_ff);
+
+    // drawLineBresInt(45, 10, 70, 80, 0xff_00_ff_ff);
+    // drawLineBresIntBiSym(45, 10, 70, 80, 0xff_00_00_ff);
+    // drawLineBresInt(45, 10, 70, 80, 0xff_00_00_ff);
+    // drawLineBresIntBiSym(45, 10, 70, 80, 0xff_00_ff_ff);
+    // drawLineBresIntBiSym2(45, 10, 70, 80, 0xff_00_00_ff);
+    // drawLineBresIntBi(45, 10, 70, 80, 0xff_00_ff_ff);
+
+    // vert
+    drawLineBresInt(15, 10, 30, 80, 0xff_ff_ff_ff);
+    drawLineBresFloat(15, 10, 30, 80, 0xff_00_ff_ff);
+    // drawLineDDA(15, 10, 30, 80, 0xff_00_ff_ff);
+    // drawLineDDAFixed(15, 10, 30, 80, 0xff_00_00_ff);
   }
 
   public inputKeyDown(keyIdx: number) {
