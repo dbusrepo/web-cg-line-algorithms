@@ -7,7 +7,7 @@ type WasmWorkerConfig = {
   wasmRunCfg: WasmRunConfig;
 };
 
-type WasmViews = WasmUtils.views.WasmViews;
+// type WasmViews = WasmUtils.views.WasmViews;
 
 class WasmWorker {
   private cfg: WasmWorkerConfig;

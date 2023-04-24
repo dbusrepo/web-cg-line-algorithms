@@ -14,7 +14,7 @@ import Commands from './engineCommands';
 import PanelCommands from '../panels/enginePanelCommands';
 import { KeyCode } from './input/inputManager';
 
-import { EngineImpl, EngineImplConfig } from './engineImpl';
+import { WasmEngine } from './wasmEngine/wasmEngine';
 
 type EngineConfig = {
   canvas: OffscreenCanvas;
@@ -36,25 +36,15 @@ class Engine {
   private static readonly STATS_PERIOD_MS = 100; // MILLI_IN_SEC;
 
   private cfg: EngineConfig;
-  private engineImpl: EngineImpl;
-  private startTime: number;
+  private impl: WasmEngine;
 
   public async init(config: EngineConfig): Promise<void> {
-    this.startTime = Date.now();
     this.cfg = config;
-    const engImplCfg: EngineImplConfig = {
+    this.impl = new WasmEngine();
+    await this.impl.init({
       canvas: this.cfg.canvas,
-    };
-    this.engineImpl = new EngineImpl();
-    await this.engineImpl.init(engImplCfg);
-  }
-
-  public onKeyDown(key: KeyCode) {
-    this.engineImpl.onKeyDown(key);
-  }
-
-  public onKeyUp(key: KeyCode) {
-    this.engineImpl.onKeyUp(key);
+      numAuxWorkers: mainConfig.numWorkers,
+    });
   }
 
   // private getBPP(): number {
@@ -172,7 +162,7 @@ class Engine {
       renderTimeAcc += avgTimeLastFrame;
       if (renderTimeAcc >= Engine.RENDER_PERIOD_MS) {
         renderTimeAcc %= Engine.RENDER_PERIOD_MS;
-        this.engineImpl.render();
+        this.impl.render();
         saveFrameTime();
       }
     };
@@ -230,6 +220,14 @@ class Engine {
     // }, 2000);
 
     requestAnimationFrame(mainLoopInit);
+  }
+
+  public onKeyDown(key: KeyCode) {
+    this.impl.onKeyDown(key);
+  }
+
+  public onKeyUp(key: KeyCode) {
+    this.impl.onKeyUp(key);
   }
 }
 
