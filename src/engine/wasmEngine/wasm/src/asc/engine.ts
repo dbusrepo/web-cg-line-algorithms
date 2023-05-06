@@ -3,7 +3,7 @@ import { initSharedHeap } from './heapAlloc';
 import {
   initMemManager,
   alloc,
-  dealloc,
+  free,
 } from './workerHeapManager';
 // import { ObjectAllocator } from './objectAllocator';
 import * as utils from './utils';
