@@ -1,16 +1,16 @@
 import assert from 'assert';
 import * as WasmUtils from './wasmMemUtils';
 import { AssetManager } from '../assets/assetManager';
+import { BPP_RGBA } from '../assets/images/bitImageRGBA';
 import { WasmRun, WasmRunConfig } from './wasmRun';
 import WasmWorkerCommands from './wasmWorkerCommands';
 import { WasmWorkerConfig } from './wasmWorker';
 import { FONT_Y_SIZE, fontChars } from '../../assets/fonts/font';
-import { stringsArrayData } from '../../assets/strings/strings';
+import { stringsArrayData } from '../../assets/build/strings';
 import { InputManager, KeyCode } from '../input/inputManager';
 import * as utils from './../utils';
 import {
   // BPP_PAL,
-  BPP_RGBA,
   // PAL_ENTRY_SIZE,
   // PALETTE_SIZE,
   PAGE_SIZE_BYTES,
@@ -68,7 +68,7 @@ class WasmEngine {
     );
     this.ctx.imageSmoothingEnabled = false; // no blur, keep the pixels sharpness
     // this.ctx.imageSmoothingQuality = "low"; // for this, imageSmoothingEnabled must be true
-    const canvas = this.ctx.canvas;
+    const { canvas } = this.ctx;
     this.imageData = this.ctx.createImageData(canvas.width, canvas.height);
   }
 
@@ -86,7 +86,7 @@ class WasmEngine {
   private initInputHandlers() {
     const key2Idx = {
       KeyA: 0,
-      // KeyB: 1,
+      KeyB: 1,
     };
     type MappedKey = keyof typeof key2Idx;
     const inputArr = this.wasmRun.WasmViews.inputKeys;
@@ -95,11 +95,9 @@ class WasmEngine {
       inputArr[key2Idx[key]] = dir;
     };
     const keyA = 'KeyA';
-    this.inputManager.addKeyDownHandler(keyA, keyHandler(keyA, 1));
-    this.inputManager.addKeyUpHandler(keyA, keyHandler(keyA, 0));
-    // const keyB = 'KeyB';
-    // this.inputManager.addKeyDownHandler(keyB, keyHandler(keyB, 1));
-    // this.inputManager.addKeyUpHandler(keyB, keyHandler(keyB, 0));
+    this.inputManager.addKeyHandlers(keyA, keyHandler(keyA, 1), keyHandler(keyA, 0));
+    const keyB = 'KeyB';
+    this.inputManager.addKeyHandlers(keyB, keyHandler(keyB, 1), keyHandler(keyB, 0));
   }
 
   private async initWorkers() {
@@ -192,18 +190,18 @@ class WasmEngine {
   }
 
   private initWasmFontChars() {
-    WasmUtils.initFontChars.writeFontCharsData(this.wasmRun.WasmViews.fontChars);
+    WasmUtils.initFontChars.copyFontChars2WasmMem(this.wasmRun.WasmViews.fontChars);
   }
 
   private initWasmStrings() {
-    WasmUtils.initStrings.writeStringsData(this.wasmRun.WasmViews.strings);
+    WasmUtils.initStrings.copyStrings2WasmMem(this.wasmRun.WasmViews.strings);
   }
 
   private initWasmImages(): void {
-    WasmUtils.initImages.writeImages(
+    WasmUtils.initImages.copyImages2WasmMem(
       this.assetManager.Images,
-      this.wasmRun.WasmViews.imagesPixels,
       this.wasmRun.WasmViews.imagesIndex,
+      this.wasmRun.WasmViews.imagesPixels,
     );
   }
 

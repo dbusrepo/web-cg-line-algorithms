@@ -30,7 +30,8 @@ import { Pointer } from './pointer';
 import { SArray, newSArray } from './sarray';
 import { test } from './test/test';
 import { PTR_T, SIZE_T } from './memUtils';
-import { MYIMG, IMG1 } from './importImages';
+
+// import { MYIMG, IMG1 } from './_genImportImages';
 
 import {
   usePalette,
@@ -42,8 +43,10 @@ import {
 } from './importVars';
 import { stringsDataPtr, stringsDataSize } from './importVars';
 import { FONT_Y_SIZE, fontCharsPtr, fontCharsSize } from './importVars';
-import * as strings from './importStrings';
-import { inputKeysPtr } from './importVars';
+// import * as strings from './_genImportStrings';
+
+// import { inputKeysPtr } from './genImportVars';
+
 // import { memCountersPtr, memCountersSize } from './importVars';
 
 const syncLoc = utils.getArrElPtr<i32>(syncArrayPtr, workerIdx);

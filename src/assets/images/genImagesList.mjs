@@ -34,7 +34,7 @@ const checkArgs = () => {
 checkArgs();
 
 // example call from cli in the same dir of the script: 
-// $ node preprocImagesList.mjs images.res imagesList.ts <ascfile>.ts
+// $ node genImagesList.mjs images.res imagesList.ts <ascfile>.ts
 // if from another dir use the rel path for the script and the other args
 const IN_FILE = srcFile; // path.join(__dirname, srcFile);
 const OUT_FILE = outFileTs; // path.join(__dirname, outFile);
@@ -46,7 +46,7 @@ const writeOpts = {
 
 const warnMsg = '// Do not modify. This file is auto generated from images.res with make';
 const getImagesUrlsPrefix = `const getImagesPaths = async () => {
-  const paths = [`;
+  const paths: Promise<typeof import("*.png")>[] = [`;
 const getImagesUrlsSuffix = `  ];
   return (await Promise.all(paths)).map((imp) => imp.default);
 };\n`;
@@ -57,7 +57,9 @@ const imagesObjSuffix = `};\n`;
 const ascImagesIndexesObjPrefix = `const ascImportImages = {`;
 const ascImagesIndexesObjSuffix = `};\n`;
 
-const suffix = 'export { images, getImagesPaths, ascImportImages };';
+const numImages = `const numImages = Object.keys(images).length;\n`;
+
+const suffix = 'export { numImages, images, getImagesPaths, ascImportImages };';
 
 try {
   console.log(IN_FILE);
@@ -82,7 +84,7 @@ try {
     }
     imgsKeys[imgKey] = 1;
     objImagesBodyStr += `${first ? '':'\n'}  ${imgKey}: '${imgFile}',`;
-    const importStmt = ` import('./${imgFile}'),`;
+    const importStmt = ` import('../images/${imgFile}'),`;
     getImagesUrlsBodyStr += `${first ? '':'\n'}   ${importStmt}`;
     ascIndicesObjBodyStr += `${first ? '':'\n'}  ${imgKey}: ${ascIdx},`;
     ascIdx++;
@@ -100,6 +102,7 @@ ${imagesObjSuffix}
 ${ascImagesIndexesObjPrefix}
 ${ascIndicesObjBodyStr}
 ${ascImagesIndexesObjSuffix}
+${numImages}
 ${suffix}
 `;
 

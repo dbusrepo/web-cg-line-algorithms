@@ -36,11 +36,11 @@ class Main {
     const enginePanel = this.buildEnginePanel('3D View', board, row0, stats);
     this.panels.push(enginePanel);
 
-    // const aPanel = this.buildViewPanel('View', board, row0, stats);
-    // this.panels.push(aPanel);
+    const aPanel = this.buildViewPanel('View', board, row0, stats);
+    this.panels.push(aPanel);
 
     // board.style.display = 'none';
-    // const aPanel2 = this.buildViewPanel('View', board, row1);
+    // const aPanel2 = this.buildViewPanel('View', board, row1, stats);
     // this.panels.push(aPanel2);
   }
 
@@ -80,7 +80,7 @@ class Main {
     // parentNode.style.zIndex = '1'; // TODO:
     const panelConfig: EnginePanelConfig = {
       ...enginePanelConfig,
-      startViewMode: StartViewMode.FULL_WIN,
+      // startViewMode: StartViewMode.FULL_WIN,
       // startViewMode: StartViewMode.WIN,
       title,
       focusOnStart: true,
