@@ -12,8 +12,8 @@ const panelConfig = {
   canvasWidth: 320,
   canvasHeight: 200,
 
-  canvasDisplayWidthWinMode: 640,
-  canvasDisplayHeightWinMode: 480,
+  canvasDisplayWidthWinMode: 800,
+  canvasDisplayHeightWinMode: 600,
 
   // canvasDisplayWidthWinMode: 512,
   // canvasDisplayHeightWinMode: 384,
@@ -31,6 +31,8 @@ const panelConfig = {
   focusOnStart: false,
 };
 
-type PanelConfig = typeof panelConfig;
+type PanelConfig = typeof panelConfig & {
+  id: number;
+};
 
 export { StartViewMode, PanelConfig, panelConfig };

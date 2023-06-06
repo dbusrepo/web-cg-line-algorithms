@@ -1,7 +1,9 @@
 // import assert from 'assert';
-// import { fileTypeFromBuffer } from 'file-type';
 import * as WasmUtils from './wasmMemUtils';
-import { WasmModules, WasmImports, loadWasmModules } from './wasmLoader';
+import type { WasmViews } from './wasmViews';
+import type { WasmModules, WasmImports } from './wasmLoader';
+import { loadWasmModules } from './wasmLoader';
+import { syncStore } from './../utils';
 // import { syncStore, randColor, sleep } from './utils';
 // import { BitImageRGBA } from './assets/images/bitImageRGBA';
 // import { PngDecoderRGBA } from './assets/images/vivaxy-png/PngDecoderRGBA';
@@ -9,56 +11,36 @@ import {
   FONT_X_SIZE,
   FONT_Y_SIZE,
   FONT_SPACING,
-} from '../../assets/fonts/font';
-import { syncStore } from './../utils';
+} from '../../../assets/fonts/font';
 
-type WasmViews = WasmUtils.views.WasmViews;
-
-type WasmRunConfig = {
+type WasmRunParams = {
+  // usePalette: boolean;
   wasmMem: WebAssembly.Memory;
-  wasmMemRegionsOffsets: WasmUtils.MemRegionsData;
-  wasmMemRegionsSizes: WasmUtils.MemRegionsData;
+  wasmMemRegionsSizes: WasmUtils.WasmMemRegionsData;
+  wasmMemRegionsOffsets: WasmUtils.WasmMemRegionsData;
   wasmWorkerHeapSize: number;
   mainWorkerIdx: number;
   workerIdx: number;
   numWorkers: number;
-  frameWidth: number;
-  frameHeight: number;
   numImages: number;
-  // usePalette: boolean;
+  surface0sizes: [number, number];
+  surface1sizes: [number, number];
 };
 
 class WasmRun {
-  protected cfg: WasmRunConfig;
-  protected wasmViews: WasmViews;
+  protected params: WasmRunParams;
   protected wasmModules: WasmModules;
+  protected wasmViews: WasmViews;
 
-  public async init(
-    workerCfg: WasmRunConfig,
-  ): Promise<void> {
-    this.cfg = workerCfg;
-    await this.initWasm();
-  }
-
-  private async initWasm(): Promise<void> {
-    this.buildWasmMemViews();
+  public async init(params: WasmRunParams, wasmViews: WasmViews) {
+    this.params = params;
+    this.wasmViews = wasmViews;
+    this.initSyncStore();
     await this.loadWasmModules();
   }
 
-  protected buildWasmMemViews(): void {
-    const {
-      wasmMem: mem,
-      wasmMemRegionsOffsets: memOffsets,
-      wasmMemRegionsSizes: memSizes,
-    } = this.cfg;
-
-    this.wasmViews = WasmUtils.views.buildWasmMemViews(
-      mem,
-      memOffsets,
-      memSizes,
-    );
-
-    const { workerIdx } = this.cfg;
+  private initSyncStore() {
+    const { workerIdx } = this.params;
     syncStore(this.wasmViews.syncArr, workerIdx, 0);
     syncStore(this.wasmViews.sleepArr, workerIdx, 0);
   }
@@ -69,47 +51,57 @@ class WasmRun {
       wasmMemRegionsSizes: memSizes,
       wasmMemRegionsOffsets: memOffsets,
       wasmWorkerHeapSize: workerHeapSize,
-    } = this.cfg;
+      surface0sizes,
+      // surface1sizes,
+      mainWorkerIdx,
+      numWorkers,
+      numImages,
+      workerIdx,
+    } = this.params;
 
-    const { frameWidth, frameHeight, mainWorkerIdx, numWorkers, numImages, workerIdx } = this.cfg;
+    const logf = (f: number) => console.log(`[wasm] Worker [${workerIdx}]: ${f}`);
 
-    const logf = (f: number) =>
-      console.log(`[wasm] Worker [${workerIdx}]: ${f}`);
     const logi = (i: number) => {
       // console.trace();
       console.log(`[wasm] Worker [${workerIdx}]: ${i}`);
     };
 
-    return {
+    const wasmImports: WasmImports = {
       memory,
-      frameWidth,
-      frameHeight,
-      frameBufferPtr: memOffsets[WasmUtils.MemRegions.FRAMEBUFFER_RGBA],
-      syncArrayPtr: memOffsets[WasmUtils.MemRegions.SYNC_ARRAY],
-      sleepArrayPtr: memOffsets[WasmUtils.MemRegions.SLEEP_ARRAY],
+
+      rgbaSurface0ptr: memOffsets[WasmUtils.MemRegionsEnum.RGBA_SURFACE_0],
+      rgbaSurface0width: surface0sizes[0],
+      rgbaSurface0height: surface0sizes[1],
+
+      // rgbaSurface1ptr: memOffsets[WasmUtils.MemRegionsEnum.RGBA_SURFACE_1],
+      // rgbaSurface1width: surface1sizes[0],
+      // rgbaSurface1height: surface1sizes[1],
+
+      syncArrayPtr: memOffsets[WasmUtils.MemRegionsEnum.SYNC_ARRAY],
+      sleepArrayPtr: memOffsets[WasmUtils.MemRegionsEnum.SLEEP_ARRAY],
       mainWorkerIdx,
       workerIdx,
       numWorkers,
-      workersHeapPtr: memOffsets[WasmUtils.MemRegions.WORKERS_HEAPS],
+      workersHeapPtr: memOffsets[WasmUtils.MemRegionsEnum.WORKERS_HEAPS],
       workerHeapSize,
-      heapPtr: memOffsets[WasmUtils.MemRegions.HEAP],
+      heapPtr: memOffsets[WasmUtils.MemRegionsEnum.HEAP],
       bgColor: 0xff_00_00_00, // randColor(),
       // usePalette: this._config.usePalette ? 1 : 0,
-      usePalette: 0,
-      fontCharsPtr: memOffsets[WasmUtils.MemRegions.FONT_CHARS],
-      fontCharsSize: memSizes[WasmUtils.MemRegions.FONT_CHARS],
+      // usePalette: 0,
+      fontCharsPtr: memOffsets[WasmUtils.MemRegionsEnum.FONT_CHARS],
+      fontCharsSize: memSizes[WasmUtils.MemRegionsEnum.FONT_CHARS],
       numImages,
-      imagesIndexSize: memSizes[WasmUtils.MemRegions.IMAGES_INDEX],
-      imagesIndexPtr: memOffsets[WasmUtils.MemRegions.IMAGES_INDEX],
-      imagesDataPtr: memOffsets[WasmUtils.MemRegions.IMAGES],
-      imagesDataSize: memSizes[WasmUtils.MemRegions.IMAGES],
-      stringsDataPtr: memOffsets[WasmUtils.MemRegions.STRINGS],
-      stringsDataSize: memSizes[WasmUtils.MemRegions.STRINGS],
-      workersMemCountersPtr: memOffsets[WasmUtils.MemRegions.MEM_COUNTERS],
-      workersMemCountersSize: memSizes[WasmUtils.MemRegions.MEM_COUNTERS],
-      inputKeysPtr: memOffsets[WasmUtils.MemRegions.INPUT_KEYS],
-      inputKeysSize: memSizes[WasmUtils.MemRegions.INPUT_KEYS],
-      hrTimerPtr: memOffsets[WasmUtils.MemRegions.HR_TIMER],
+      imagesIndexSize: memSizes[WasmUtils.MemRegionsEnum.IMAGES_INDEX],
+      imagesIndexPtr: memOffsets[WasmUtils.MemRegionsEnum.IMAGES_INDEX],
+      imagesDataPtr: memOffsets[WasmUtils.MemRegionsEnum.IMAGES],
+      imagesDataSize: memSizes[WasmUtils.MemRegionsEnum.IMAGES],
+      stringsDataPtr: memOffsets[WasmUtils.MemRegionsEnum.STRINGS],
+      stringsDataSize: memSizes[WasmUtils.MemRegionsEnum.STRINGS],
+      workersMemCountersPtr: memOffsets[WasmUtils.MemRegionsEnum.MEM_COUNTERS],
+      workersMemCountersSize: memSizes[WasmUtils.MemRegionsEnum.MEM_COUNTERS],
+      inputKeysPtr: memOffsets[WasmUtils.MemRegionsEnum.INPUT_KEYS],
+      inputKeysSize: memSizes[WasmUtils.MemRegionsEnum.INPUT_KEYS],
+      hrTimerPtr: memOffsets[WasmUtils.MemRegionsEnum.HR_TIMER],
 
       FONT_X_SIZE,
       FONT_Y_SIZE,
@@ -118,6 +110,8 @@ class WasmRun {
       logi,
       logf,
     };
+
+    return wasmImports;
   }
 
   private async loadWasmModules(): Promise<void> {
@@ -134,4 +128,5 @@ class WasmRun {
   }
 }
 
-export { WasmRun, WasmRunConfig };
+export type { WasmRunParams };
+export { WasmRun };
