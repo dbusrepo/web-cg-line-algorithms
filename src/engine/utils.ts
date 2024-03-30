@@ -1,12 +1,4 @@
-type TypedArray =
-  | Int8Array
-  | Uint8Array
-  | Int16Array
-  | Uint16Array
-  | Int32Array
-  | Uint32Array;
-
-type Range = [start: number, end: number];
+import type { Range, TypedArray } from './ctypes';
 
 // split [0..numTasks-1] between [0..numWorkers-1] workers and get the index
 // range for worker workerIdx. Workers on head get one more task if needed.
@@ -22,18 +14,7 @@ function range(workerIdx: number, numWorkers: number, numTasks: number): Range {
   return [start, end];
 }
 
-function randColor(): number {
-  const r = (Math.random() * 255) | 0;
-  const g = (Math.random() * 255) | 0;
-  const b = (Math.random() * 255) | 0;
-  const color = (0xff << 24) | (b << 16) | (g << 8) | r; // abgr
-  return color;
-}
-
-const arrAvg = (
-  values: Float32Array | Float64Array,
-  count: number,
-) => {
+const arrAvg = (values: Float32Array | Float64Array, count: number) => {
   let acc = 0;
   const numIter = Math.min(count, values.length);
   if (numIter === 0) return 0;
@@ -47,25 +28,24 @@ function sleep(sleepArr: Int32Array, idx: number, timeoutMs: number): void {
   Atomics.wait(sleepArr, idx, 0, Math.max(1, timeoutMs | 0));
 }
 
-function syncStore(syncArr: TypedArray, idx: number, value: number): void {
-  Atomics.store(syncArr, idx, value);
+function isPowerOf2(value: number): boolean {
+  return value !== 0 && (value & (value - 1)) === 0;
 }
 
-function syncWait(syncArr: Int32Array, idx: number, value: number): void {
-  Atomics.wait(syncArr, idx, value);
+function nextPowerOf2(value: number): number {
+  return 2 ** Math.ceil(Math.log2(value));
 }
 
-function syncNotify(syncArr: Int32Array, idx: number): void {
-  Atomics.notify(syncArr, idx);
+function nextGreaterPowerOf2(value: number): number {
+  return 2 ** Math.ceil(Math.log2(value + 1));
 }
 
 export {
   arrAvg,
   range,
   Range,
-  randColor,
-  syncStore,
-  syncWait,
-  syncNotify,
   sleep,
+  isPowerOf2,
+  nextPowerOf2,
+  nextGreaterPowerOf2,
 };

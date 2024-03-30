@@ -1,10 +1,11 @@
 // import assert from 'assert';
 import * as WasmUtils from './wasmMemUtils';
 import type { WasmViews } from './wasmViews';
+import { buildWasmMemViews } from './wasmViews';
 import type { WasmModules, WasmImports } from './wasmLoader';
 import { loadWasmModules } from './wasmLoader';
-import { syncStore } from './../utils';
-// import { syncStore, randColor, sleep } from './utils';
+import { BPP_RGBA } from '../assets/images/bitImageRGBA';
+// import { randColor, sleep } from '../utils';
 // import { BitImageRGBA } from './assets/images/bitImageRGBA';
 // import { PngDecoderRGBA } from './assets/images/vivaxy-png/PngDecoderRGBA';
 import {
@@ -22,10 +23,17 @@ type WasmRunParams = {
   mainWorkerIdx: number;
   workerIdx: number;
   numWorkers: number;
-  numImages: number;
+  numTextures: number;
   surface0sizes: [number, number];
   surface1sizes: [number, number];
+  frameColorRGBAPtr: number;
+  texturesPtr: number;
+  mipmapsPtr: number;
 };
+
+let gWasmRun: WasmRun;
+let gWasmView: DataView;
+let gWasmViews: WasmViews;
 
 class WasmRun {
   protected params: WasmRunParams;
@@ -35,14 +43,10 @@ class WasmRun {
   public async init(params: WasmRunParams, wasmViews: WasmViews) {
     this.params = params;
     this.wasmViews = wasmViews;
-    this.initSyncStore();
     await this.loadWasmModules();
-  }
-
-  private initSyncStore() {
-    const { workerIdx } = this.params;
-    syncStore(this.wasmViews.syncArr, workerIdx, 0);
-    syncStore(this.wasmViews.sleepArr, workerIdx, 0);
+    gWasmRun = this;
+    gWasmView = this.wasmViews.view;
+    gWasmViews = this.wasmViews;
   }
 
   private buildWasmImports(): WasmImports {
@@ -55,14 +59,17 @@ class WasmRun {
       // surface1sizes,
       mainWorkerIdx,
       numWorkers,
-      numImages,
+      numTextures,
       workerIdx,
+      frameColorRGBAPtr,
+      texturesPtr,
+      mipmapsPtr,
     } = this.params;
 
-    const logf = (f: number) => console.log(`[wasm] Worker [${workerIdx}]: ${f}`);
+    const logf = (f: number) =>
+      console.log(`[wasm] Worker [${workerIdx}]: ${f}`);
 
     const logi = (i: number) => {
-      // console.trace();
       console.log(`[wasm] Worker [${workerIdx}]: ${i}`);
     };
 
@@ -84,23 +91,20 @@ class WasmRun {
       numWorkers,
       workersHeapPtr: memOffsets[WasmUtils.MemRegionsEnum.WORKERS_HEAPS],
       workerHeapSize,
-      heapPtr: memOffsets[WasmUtils.MemRegionsEnum.HEAP],
-      bgColor: 0xff_00_00_00, // randColor(),
+      sharedHeapPtr: memOffsets[WasmUtils.MemRegionsEnum.HEAP],
       // usePalette: this._config.usePalette ? 1 : 0,
       // usePalette: 0,
       fontCharsPtr: memOffsets[WasmUtils.MemRegionsEnum.FONT_CHARS],
       fontCharsSize: memSizes[WasmUtils.MemRegionsEnum.FONT_CHARS],
-      numImages,
-      imagesIndexSize: memSizes[WasmUtils.MemRegionsEnum.IMAGES_INDEX],
-      imagesIndexPtr: memOffsets[WasmUtils.MemRegionsEnum.IMAGES_INDEX],
-      imagesDataPtr: memOffsets[WasmUtils.MemRegionsEnum.IMAGES],
-      imagesDataSize: memSizes[WasmUtils.MemRegionsEnum.IMAGES],
+      numTextures,
+      texturesIndexPtr: memOffsets[WasmUtils.MemRegionsEnum.TEXTURES_INDEX],
+      texturesIndexSize: memSizes[WasmUtils.MemRegionsEnum.TEXTURES_INDEX],
+      texelsPtr: memOffsets[WasmUtils.MemRegionsEnum.TEXTURES],
+      texelsSize: memSizes[WasmUtils.MemRegionsEnum.TEXTURES],
       stringsDataPtr: memOffsets[WasmUtils.MemRegionsEnum.STRINGS],
       stringsDataSize: memSizes[WasmUtils.MemRegionsEnum.STRINGS],
       workersMemCountersPtr: memOffsets[WasmUtils.MemRegionsEnum.MEM_COUNTERS],
       workersMemCountersSize: memSizes[WasmUtils.MemRegionsEnum.MEM_COUNTERS],
-      inputKeysPtr: memOffsets[WasmUtils.MemRegionsEnum.INPUT_KEYS],
-      inputKeysSize: memSizes[WasmUtils.MemRegionsEnum.INPUT_KEYS],
       hrTimerPtr: memOffsets[WasmUtils.MemRegionsEnum.HR_TIMER],
 
       FONT_X_SIZE,
@@ -109,6 +113,10 @@ class WasmRun {
 
       logi,
       logf,
+
+      frameColorRGBAPtr,
+      texturesPtr,
+      mipmapsPtr,
     };
 
     return wasmImports;
@@ -119,6 +127,22 @@ class WasmRun {
     this.wasmModules = await loadWasmModules(wasmImports);
   }
 
+  get FrameWidth(): number {
+    return this.params.surface0sizes[0];
+  }
+
+  get FrameHeight(): number {
+    return this.params.surface0sizes[1];
+  }
+
+  get FrameStride(): number {
+    return this.FrameWidth;
+  }
+
+  get FrameStrideBytes(): number {
+    return this.FrameWidth * BPP_RGBA;
+  }
+
   get WasmViews(): WasmViews {
     return this.wasmViews;
   }
@@ -126,7 +150,11 @@ class WasmRun {
   get WasmModules(): WasmModules {
     return this.wasmModules;
   }
+
+  get WasmMem(): WebAssembly.Memory {
+    return this.params.wasmMem;
+  }
 }
 
 export type { WasmRunParams };
-export { WasmRun };
+export { WasmRun, gWasmRun, gWasmView, gWasmViews };

@@ -726,3 +726,19 @@ logi(nextPowerOfTwo(8));
 //     }
 //   },
 // };
+
+
+// @ts-ignore: decorator
+@inline function align<T>(): SIZE_T {
+  return alignof<T>();
+}
+
+// if (
+//   !(
+//     pointerLockDeactivatedAt === null ||
+//     performance.now() - pointerLockDeactivatedAt > 1300
+//   )
+// ) {
+//   console.log('too early...');
+//   return;
+// }

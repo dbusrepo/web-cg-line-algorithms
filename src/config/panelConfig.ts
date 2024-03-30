@@ -1,5 +1,6 @@
 import { eventLogConfig } from './eventLogConfig';
 import { consoleConfig } from './consoleConfig';
+import type { PanelId } from '../app/appTypes';
 
 const enum StartViewMode {
   WIN = 'win',
@@ -9,18 +10,43 @@ const enum StartViewMode {
 const panelConfig = {
   title: 'Panel',
 
-  canvasWidth: 320,
-  canvasHeight: 200,
+  startViewMode: StartViewMode.WIN as StartViewMode,
 
-  canvasDisplayWidthWinMode: 800,
-  canvasDisplayHeightWinMode: 600,
+  // canvasWidth: 320,
+  // canvasHeight: 200,
 
-  // canvasDisplayWidthWinMode: 512,
-  // canvasDisplayHeightWinMode: 384,
+  // canvasWidth: 400,
+  // canvasHeight: 300,
+
+  // canvasWidth: 512,
+  // canvasHeight: 384,
+
+  // canvasWidth: 640,
+  // canvasHeight: 480,
+
+  canvasWidth: 800,
+  canvasHeight: 600,
+
+  // canvasWidth: 1024,
+  // canvasHeight: 768,
+
+  // canvasWidth: 1280,
+  // canvasHeight: 1024,
+
   // canvasDisplayWidthWinMode: 320,
   // canvasDisplayHeightWinMode: 200,
 
-  startViewMode: StartViewMode.WIN as StartViewMode,
+  // canvasDisplayWidthWinMode: 512,
+  // canvasDisplayHeightWinMode: 384,
+
+  // canvasDisplayWidthWinMode: 800,
+  // canvasDisplayHeightWinMode: 600,
+
+  canvasDisplayWidthWinMode: 1024,
+  canvasDisplayHeightWinMode: 768,
+
+  // canvasDisplayWidthWinMode: 1280,
+  // canvasDisplayHeightWinMode: 1024,
 
   // FULL_WIN_KEY: 'F1',
   // FULL_SCREEN_KEY: 'F2',
@@ -32,7 +58,7 @@ const panelConfig = {
 };
 
 type PanelConfig = typeof panelConfig & {
-  id: number;
+  id: PanelId;
 };
 
 export { StartViewMode, PanelConfig, panelConfig };

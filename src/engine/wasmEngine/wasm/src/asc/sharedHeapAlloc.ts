@@ -1,14 +1,16 @@
 import { myAssert } from './myAssert';
 import { LOCK_T, lock, unlock } from './mutex';
-import { logi, heapPtr } from './importVars';
+import { logi, sharedHeapPtr } from './importVars';
 import { PTR_SIZE, PTR_ALIGN_MASK, SIZE_T, MAX_ALLOC_SIZE, MEM_BLOCK_USAGE_BIT_MASK,
          PTR_T, NULL_PTR, getTypeSize, getTypeAlignMask } from './memUtils';
 
 const LOCK_SIZE = getTypeSize<LOCK_T>();
 const MUTEX_ALIGN_MASK = getTypeAlignMask<LOCK_T>();
 
-const HEAP_BASE: PTR_T = heapPtr;
-const MUTEX_PTR: PTR_T = (heapPtr + MUTEX_ALIGN_MASK) & ~MUTEX_ALIGN_MASK; // align to 4 bytes
+let sharedHeapManagerInitialized = false;
+
+const HEAP_BASE: PTR_T = sharedHeapPtr;
+const MUTEX_PTR: PTR_T = (sharedHeapPtr + MUTEX_ALIGN_MASK) & ~MUTEX_ALIGN_MASK; // align to 4 bytes
 const ALLOC_PTR_PTR: PTR_T = (MUTEX_PTR + LOCK_SIZE + PTR_ALIGN_MASK) & ~PTR_ALIGN_MASK; // after the mutex, align to X bytes
 const FREE_PTR_PTR: PTR_T = ALLOC_PTR_PTR + PTR_SIZE; // after the offset pointer, the free list ptr
 const START_ALLOC_PTR: PTR_T = FREE_PTR_PTR  + PTR_SIZE; // after the free block ptr ptr, the alloc area
@@ -67,20 +69,30 @@ const BLOCK_SIZE = getTypeSize<Block>();
   return atomic.cmpxchg<PTR_T>(ALLOC_PTR_PTR, curOffset, newOffset);
 }
 
-// thread safe?
-function checkGrowMemory(curOffset: PTR_T, nextOffset: PTR_T): void {
-  let curPages = memory.size();
-  if (nextOffset > (<PTR_T>curPages) << 16) {
-    let pagesNeeded = <i32>(((nextOffset - curOffset  + 0xffff) & ~0xffff) >>> 16);
-    let pagesWanted = <i32>max(curPages, pagesNeeded); // double memory
-    if (memory.grow(pagesWanted) < 0) {
-      if (memory.grow(pagesNeeded) < 0) {
-        // logi(curPages);
-        unreachable(); // out of memory
-      }
-    }
+// // thread safe?
+// function checkGrowMemory(curOffset: PTR_T, nextOffset: PTR_T): void {
+//   let numPages = memory.size();
+//   if (nextOffset > (<PTR_T>numPages) << 16) {
+//     let pagesNeeded = <i32>(((nextOffset - curOffset  + 0xffff) & ~0xffff) >>> 16);
+//     let pagesWanted = <i32>max(numPages, pagesNeeded); // double memory
+//     if (memory.grow(pagesWanted) < 0) {
+//       if (memory.grow(pagesNeeded) < 0) {
+//         // logi(curPages);
+//         unreachable(); // out of memory
+//       }
+//     }
+//   }
+// }
+
+function checkMemoryLimit(curOffset: PTR_T, nextOffset: PTR_T): void {
+  // logi(curOffset);
+  // logi(nextOffset);
+  let numPages = memory.size();
+  if (nextOffset > ((<PTR_T>numPages) << 16)) {
+    unreachable(); // out of memory
   }
 }
+
 
 function allocNewBlock(reqSize: SIZE_T): PTR_T {
   let curOffset: PTR_T;
@@ -93,7 +105,8 @@ function allocNewBlock(reqSize: SIZE_T): PTR_T {
     blockPtr = ((curOffset + HEADER_SIZE + PTR_ALIGN_MASK) & ~PTR_ALIGN_MASK) - HEADER_SIZE;
     dataSize = max(BLOCK_SIZE - HEADER_SIZE, reqSize);
     newOffset = blockPtr + HEADER_SIZE + dataSize;
-    checkGrowMemory(curOffset, newOffset);
+    // checkGrowMemory(curOffset, newOffset);
+    checkMemoryLimit(curOffset, newOffset);
   } while (
     heapAllocSetOffset(curOffset, newOffset) != curOffset
   );
@@ -118,7 +131,8 @@ function searchFreeList(reqSize: SIZE_T): PTR_T {
   return blockPtrPtr;
 }
 
-function heapAlloc(reqSize: SIZE_T): PTR_T {
+function sharedHeapAlloc(reqSize: SIZE_T): PTR_T {
+  myAssert(sharedHeapManagerInitialized);
   myAssert(reqSize > 0);
   myAssert(reqSize <= MAX_ALLOC_SIZE);
   let dataPtr: PTR_T = NULL_PTR;
@@ -143,7 +157,8 @@ function heapAlloc(reqSize: SIZE_T): PTR_T {
   return dataPtr;
 }
 
-function heapFree(ptr: PTR_T): void {
+function sharedHeapFree(ptr: PTR_T): void {
+  myAssert(sharedHeapManagerInitialized);
   myAssert(ptr >= START_ALLOC_PTR);
   lock(MUTEX_PTR);
   const blockPtr = ptr - HEADER_SIZE;
@@ -159,6 +174,7 @@ function initSharedHeap(): void {
   // logi(START_ALLOC_PTR);
   store<PTR_T>(ALLOC_PTR_PTR, START_ALLOC_PTR);
   store<PTR_T>(FREE_PTR_PTR, NULL_PTR);
+  sharedHeapManagerInitialized = true;
 }
 
-export { initSharedHeap, heapAlloc, heapFree };
+export { initSharedHeap, sharedHeapAlloc, sharedHeapFree };

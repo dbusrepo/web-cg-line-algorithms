@@ -16,12 +16,20 @@ body {
   /* justify-content: center; /1* center horizontally *1/ */
   /* or this: */
   /* align-items: center; /1* center vertically *1/ */
+  /* background-color: #ccc; */
   display: flex;
   flex-direction: column;
-  /* background-color: #ccc; */
-  margin: 0;
   width: 100%;
   height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  scrollbar-width: none; /* disable scrollbar in Firefox */
+}
+
+/* disable scrollbar in Chrome and Safari */
+/* html::-webkit-scrollbar { */
+body::-webkit-scrollbar {
+  display: none;
 }
 
 /* grey colors: #cccccc #8C92AC */
@@ -32,6 +40,8 @@ body {
   display: flex;
   flex-direction: column;
   background-color: #8c92ac !important;
+  /* background-color: #808080 !important; */
+  /* background-color: #909195 !important; */
   /* background: linear-gradient(#8C92AC, #8C92AC); */
   /* background: rgb(208,214,233); */
   /* background: radial-gradient(circle, rgba(208,214,233,1) 0%, rgba(105,111,140,1) 100%); */
@@ -45,6 +55,12 @@ body {
   flex-wrap: wrap;
   /* text-align: center; */
   /* border: '5px solid #c0c0c0', */
+  scrollbar-width: none; /* disable scrollbar in Firefox */
+}
+
+/* disable scrollbar in Chrome and Safari */
+#board::-webkit-scrollbar {
+  display: none;
 }
 
 .row {
@@ -109,6 +125,12 @@ body {
   border: none;
   /* z-index: 999; */
   /* padding: 0; */
+  scrollbar-width: none; /* disable scrollbar in Firefox */
+}
+
+/* disable scrollbar in Chrome and Safari */
+.panel-container-win-full::-webkit-scrollbar {
+  display: none;
 }
 
 .panel-full {
@@ -154,6 +176,8 @@ body {
   /* object-fit: */
   width: 100%;
   height: 100%;
+  /* https://stackoverflow.com/questions/34471077/disable-text-selection-on-double-click */
+   user-select: none;
 }
 
 .canvas-win {
@@ -247,7 +271,7 @@ body {
   scrollbar-width: none; /* disable scrollbar in Firefox */
 }
 
-/* disable event log history scrollbar in Chrome */
+/* disable scrollbar in Chrome and Safari */
 .event-log-history::-webkit-scrollbar {
   display: none;
 }
@@ -329,7 +353,7 @@ body {
   scrollbar-width: none; /* disable scrollbar in Firefox */
 }
 
-/* disable console history scrollbar in Chrome */
+/* disable scrollbar in Chrome and Safari */
 .console-history::-webkit-scrollbar {
   display: none;
 }
@@ -337,6 +361,21 @@ body {
 /* disable scrollbar in Firefox */
 .tp-rotv {
   scrollbar-width: none;
+}
+
+/* disable scrollbar in Chrome and Safari */
+.tp-rotv::-webkit-scrollbar {
+  display: none;
+}
+
+/* disable scrollbar in Firefox */
+.guify-panel-container {
+  scrollbar-width: none;
+}
+
+/* disable scrollbar in Chrome and Safari */
+.guify-panel-container::-webkit-scrollbar {
+  display: none;
 }
 
 .console-input {

@@ -75,14 +75,12 @@ class ConsolePanel extends React.Component<
   }
 
   componentDidMount() {
-    this.inputRef?.focus();
 
     this.onKeyDown = (event: KeyboardEvent) => {
       const { key } = event;
       if (key === this.props.hotkey) {
         event.preventDefault();
         this.setOpen(!this.state.open);
-        return;
       }
     };
 
@@ -118,6 +116,9 @@ class ConsolePanel extends React.Component<
     };
 
     this.listContRef.addEventListener('mousedown', this.onMouseDown);
+
+    this.inputRef.focus();
+    this.inputRef.value = this.props.prompt;
   }
 
   componentDidUpdate(
@@ -126,14 +127,14 @@ class ConsolePanel extends React.Component<
   ) {
     // console.log('update');
 
-    this.histLines = [
-      ...new Set(
-        this.props.history
-          .map((e) => e.stmt)
-          .filter((l) => l.substring(this.props.prompt.length).trim()),
-      ),
-    ];
-    this.histLines.push(this.props.prompt); // add new entry val
+    this.histLines = this.props.history
+      .map((e) => e.stmt)
+      .filter((line, index, array) =>
+        line.substring(this.props.prompt.length).trim(),
+      )
+      .filter((line, index, array) => array[index - 1] !== line);
+
+    this.histLines.push(this.props.prompt); // add empty prompt
     this.histSearchIdx = this.histLines.length - 1;
 
     // console.log('is grabbing: ' + this.state.isGrabbing);
@@ -210,6 +211,10 @@ class ConsolePanel extends React.Component<
     this.inputRef.value = this.props.prompt;
   }
 
+  private onInputFocus() {
+    // this.inputRef.value = this.props.prompt;
+  }
+
   public setOpen(open: boolean): void {
     if (open) {
       this.isClosed = false;
@@ -264,11 +269,11 @@ class ConsolePanel extends React.Component<
         break;
       case 'ArrowUp': // TODO
         event.preventDefault();
-        this.historySearch('backward');
+        this.historySearchUp();
         break;
       case 'ArrowDown': // TODO
         event.preventDefault();
-        this.historySearch('forward');
+        this.historySearchDown();
         break;
       case 'ArrowLeft': // block cursor when moving left in the prompt prefix
         {
@@ -332,7 +337,7 @@ class ConsolePanel extends React.Component<
 
   private onInputKeyChange(event: React.ChangeEvent<HTMLInputElement>) {
     event.preventDefault();
-    const inputEl = this.inputRef; //event.target as HTMLInputElement;
+    const inputEl = this.inputRef; // event.target as HTMLInputElement;
     const { prompt } = this.props;
     const input = inputEl.value;
     const line = this.props.prompt + input.substring(prompt.length);
@@ -356,17 +361,23 @@ class ConsolePanel extends React.Component<
   }
 
   // TODO
-  private historySearch(direction: 'forward' | 'backward'): void {
+  private historySearchUp() {
+    this.historySearch(-1);
+  }
+
+  private historySearchDown() {
+    this.historySearch(1);
+  }
+
+  private historySearch(direction: number): void {
     // console.log('historySearch: ', direction, this.histSearchIdx, this.histLines);
-    const dir = direction === 'forward' ? 1 : -1;
-    if (this.histLines.length) {
-      assert(
-        this.histSearchIdx >= 0 && this.histSearchIdx < this.histLines.length,
-      );
-      const numLines = this.histLines.length;
-      const nextHistIdx = (this.histSearchIdx + dir + numLines) % numLines;
-      this.inputRef.value = this.histLines[nextHistIdx];
-      this.histSearchIdx = nextHistIdx;
+    assert(direction === 1 || direction === -1);
+    const numLines = this.histLines.length;
+    if (numLines) {
+      assert(this.histSearchIdx >= 0 && this.histSearchIdx < numLines);
+      this.histSearchIdx =
+        (this.histSearchIdx + direction + numLines) % numLines;
+      this.inputRef.value = this.histLines[this.histSearchIdx];
     }
   }
 
@@ -436,14 +447,14 @@ class ConsolePanel extends React.Component<
         </div>
 
         <input
-          spellcheck={false}
+          spellCheck={false}
           className="console-input"
           style={inputStyle}
           ref={(el) => {
             this.inputRef = el!;
           }}
           // defaultValue={this.props.prompt}
-          onFocus={this.clearInput.bind(this)}
+          onFocus={this.onInputFocus.bind(this)}
           onChange={this.onInputKeyChange.bind(this)}
           onClick={this.onInputClick.bind(this)}
           onKeyDown={this.onInputKeyDown.bind(this)}

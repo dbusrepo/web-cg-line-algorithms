@@ -4,13 +4,15 @@
 # MAKEFLAGS += --no-print-directory
 
 TARGET_DEBUG := debug
-TARGET_SPEED := release-speed
-TARGET_SIZE := release-size
-TARGET ?= $(TARGET_DEBUG)
+TARGET_SPEED := release_speed
+TARGET_SIZE := release_size
+TARGET ?= $(TARGET_SPEED)
 
 ASC_BINDINGS := esm
 
 ASC_CONFIG_FILE := asconfig.json
+ASC_COMPILE_SCRIPT := compile_asc.mjs
+ASC_COMPILE_SCRIPT_DEP := wasmConfig.mjs
 
 SOURCE_DIR := src
 BUILD_DIR := build
@@ -20,8 +22,9 @@ ASC_BUILD_DIR := $(BUILD_DIR)/asc
 
 # rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
 
-ASC_ALL_SOURCE_FILES := $(shell find src/asc/ -type f -name '*.ts')
+ASC_ALL_SOURCE_FILES := $(shell find src/asc/ -type f \( -name '*.ts' ! -name 'gen_*.ts' \))
 # ASC_ALL_SOURCE_FILES := $(wildcard $(ASC_SOURCE_DIR)/**/*.ts)
+ASC_ALL_DEP_FILES := $(shell find src/asc/ -type f \( -name '*.d' \))
 
 # ASC_DEP_FILES := $(wildcard $(ASC_SOURCE_DIR)/*.d)
 ASC_DEP_FILES := $(ASC_ALL_SOURCE_FILES:.ts=.d)
@@ -44,7 +47,7 @@ WASM_OPT_SPEED:= --converge --dce -O3 $(WASM_OPT_FLAGS)
 WASM_OPT_SIZE:= --converge --dce -Oz $(WASM_OPT_FLAGS)
 WASM_OPT_DEBUG:= -O --debuginfo $(WASM_OPT_FLAGS)
 
-.PHONY: all build_asc build_wat force clean clean-asc clean-asc-dep clean-wat
+.PHONY: all build_asc build_wat force clean clean-asc clean-asc-deps clean-wat
 
 all: build_asc
 
@@ -69,14 +72,21 @@ ifeq (,$(findstring clean,$(MAKECMDGOALS)))
 -include $(ASC_DEP_FILES)
 endif
 
-$(ASC_BUILD_DIR)/%.wasm: $(ASC_SOURCE_DIR)/%.ts build_flags $(ASC_CONFIG_FILE)
+## compile with asc from node script
+$(ASC_BUILD_DIR)/%.wasm: $(ASC_SOURCE_DIR)/%.ts build_flags $(ASC_COMPILE_SCRIPT) $(ASC_COMPILE_SCRIPT_DEP)
 	$(info GEN $@)
-	asc --config $(ASC_CONFIG_FILE) $< -o $@ -t $(basename $@).wat -b $(ASC_BINDINGS) --target $(TARGET)
+	@time node ./compile_asc.mjs $< $@ $(ASC_BINDINGS) $(TARGET)
+
+## compile with asc directly
+# $(ASC_BUILD_DIR)/%.wasm: $(ASC_SOURCE_DIR)/%.ts build_flags $(ASC_CONFIG_FILE)
+# 	$(info GEN $@)
+# 	$(info input $<)
+# 	asc --config $(ASC_CONFIG_FILE) $< -o $@ -t $(basename $@).wat -b $(ASC_BINDINGS) --target $(TARGET)
 
 %.d: %.ts
 	$(info GEN $@)
-	@rm -f $@; \
-	node ./genDepList.mjs $< > $@
+	@rm -f $@;
+	@node ./genDepList.mjs $< > $@
 
 # **************************************************
 # COMPILE WAT
@@ -105,17 +115,21 @@ else
 	wasm-opt $@ -o $@ $(WASM_OPT_DEBUG)
 endif
 
-clean-asc-dep:
-	@echo 'Cleaning asc dependency files...'
+clean-asc-deps:
+	@echo 'Cleaning asc .d dep files...'
 	rm -f $(ASC_DEP_FILES)
 
-clean-asc: clean-asc-dep
+clean-asc-all-deps:
+	@echo 'Cleaning all .d dep files...'
+	rm -f $(ASC_ALL_DEP_FILES)
+
+clean-asc: clean-asc-deps
 	rm -rf $(BUILD_DIR)/asc
 
 clean-wat:
 	rm -rf $(BUILD_DIR)/wat
 
-clean: clean-asc-dep
+clean: clean-asc-deps
 	@echo 'Cleaning asc build files...'
 	rm -rf $(BUILD_DIR)/
 

@@ -1,3 +1,11 @@
+If you want a fullscreen canvas this is the eaiest way
+<style>
+body { margin: 0; }
+canvas { width: 100vw; height: 100vh; display: block; }
+</style>
+
+https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+
 https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API
 
 to add an image:
@@ -6,7 +14,6 @@ add a line to images.res: key=imagefile
 under src/assets there is a makefile that builds the ts file with compiled infos
 about the images and generates also a ts files with export declaration for asc
 under src/engine/wasmEngine/wasm/src/asc/
-
 
 see asconfig.json:
 
@@ -232,24 +239,28 @@ https://stackoverflow.com/questions/30924280/what-is-the-best-way-to-determine-i
 https://stackoverflow.com/questions/466204/rounding-up-to-next-power-of-2
 https://stackoverflow.com/questions/47074126/log2-of-an-integer-that-is-a-power-of-2
 
--how to link another remote:
-
-for ex. from a specific project that wants to link this as another remote:
-
-git remote add base-origin https://github.com/dbusrepo/web-graphics-base.git
-gco base-origin/main -> switch to main branch of base proj
-gcob base-origin-main -> create a local branch on it
-git branch -u base-origin/main  <- set tracking with remote branch
-git pull base-origin main (or simply git pull after the prev cmd) <- we pull from the main branch of base proj
-
-similarly if we want to add to this proj another remote from a specifi proj:
-
-git remote add ray-casting-origin https://github.com/dbusrepo/web-ray-casting.git
+##################################################
 
 Add new project derived from base:
 
 git config user.name dbusrepo
 git config user.email dbusrepo@gmail.com
+
+-how to link the base proj in a new proj:
+
+git remote add origin-web-cg-base git@github.com:dbusrepo/web-cg-base.git
+or (with https):
+git remote add origin-web-cg-base https://github.com/dbusrepo/web-cg-base.git
+
+gco origin-web-cg-base/main -> switch to base main last commit
+gcob base-main -> create a local branch on it
+git branch --set-upstream-to=origin-web-cg-base/main <- set tracking with remote branch
+git config push.default upstream <- to allow pushing to a branch with a different name
+// see https://git-scm.com/docs/git-config#Documentation/git-config.txt-pushdefault
+
+similarly if we want to add to this proj another remote from a specifi proj:
+
+git remote add ray-casting-origin https://github.com/dbusrepo/web-ray-casting.git
 
 git init
 git remote add origin https://github.com/dbusrepo/Line-drawing-wasm.git  <- project origin
@@ -311,3 +322,40 @@ $ npm ninstall -g assemblyscript
 
 export const url
 https://stackoverflow.com/questions/68612239/referenceerror-document-is-not-defined-service-worker-workbox
+
+asc pointer notes
+https://github.com/AssemblyScript/assemblyscript/issues/1363
+
+from asc builtin doc: (sec. Static type checks)
+function isVector<T>(value?: T): bool
+Tests if the specified type or expression is of a SIMD vector type. Compiles to a constant.
+
+notes makefile:
+A backslash ( \ ) followed by a newline character is interpreted as a space in the command
+
+@rm -f $@; \                 
+node ./genDepList.mjs $< > $@
+
+circular dependency webpack:
+https://stackoverflow.com/questions/73157442/webpack-warning-using-webworker-circular-dependency-between-chunks-with-runtime
+
+https://stackoverflow.com/questions/73499449/webpack-dev-server-not-reloading
+
+private syncWorkers() {
+  for (let i = 0; i < this.auxWorkers.length; ++i) {
+    const { index: workerIdx } = this.auxWorkers[i];
+    Atomics.store(this.syncArray, workerIdx, 1);
+    Atomics.notify(this.syncArray, workerIdx);
+  }
+  // this.wasmEngine.syncWorkers(this.auxWorkers);
+}
+
+private waitWorkers() {
+  for (let i = 0; i < this.auxWorkers.length; ++i) {
+    const { index: workerIdx } = this.auxWorkers[i];
+    Atomics.wait(this.syncArray, workerIdx, 1);
+  }
+  // this.wasmEngine.waitWorkers(this.auxWorkers);
+}
+
+https://github.com/iamturns/create-exposed-app/blob/master/package.json

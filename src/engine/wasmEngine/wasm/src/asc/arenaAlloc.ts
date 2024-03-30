@@ -1,7 +1,7 @@
 import { myAssert } from './myAssert';
 import { alloc, free, assertPtrLowerBound } from './workerHeapManager';
-import { PTR_SIZE, PTR_ALIGN_MASK, SIZE_T, MAX_ALLOC_SIZE, 
-         PTR_T, NULL_PTR, getTypeSize, getTypeAlignMask } from './memUtils';
+import { PTR_SIZE, PTR_ALIGN_MASK, SIZE_T, MAX_ALLOC_SIZE, isPowerOfTwo, 
+         PTR_T, NULL_PTR, getTypeSize, getTypeAlignMask, nextPowerOfTwo } from './memUtils';
 import { logi } from './importVars';
 
 // The arena allocs blocks of objects. Free objects are linked in a free list
@@ -14,7 +14,7 @@ import { logi } from './importVars';
   private nextPtr: PTR_T; // next allocation in block
   private freePtr: PTR_T; // free list head ptr
   private numLeft: SIZE_T; // number of remaining allocable objs in cur block
-  private numPerBlock: SIZE_T; // number of allocable objs per block
+  private numObjsBlock: SIZE_T; // number of allocable objs per block
   private blockSize: SIZE_T; // tot bytes allocated per block
   private objSize: SIZE_T; // total bytes (obj+align pad) per obj, obj are aligned
   private alignMask: SIZE_T; // objects align mask
@@ -25,35 +25,25 @@ import { logi } from './importVars';
     this.nextPtr = NULL_PTR;
     this.blockSize = 0;
     this.objSize = 0;
-    this.numPerBlock = 0;
+    this.numObjsBlock = 0;
     this.numLeft = 0;
     this.alignMask = 0;
   }
 
-  init(objSize: SIZE_T, numObjsPerBlock: u32, objAlignLg2: SIZE_T): void {
+  init(objSize: SIZE_T, numObjsBlock: SIZE_T, objAlignLg2: SIZE_T): void {
     myAssert(objSize > 0);
-    myAssert(numObjsPerBlock > 0);
-    const minObjSize = max(objSize, PTR_SIZE);
-    const alignMask: SIZE_T = max(<SIZE_T>(1) << objAlignLg2, PTR_ALIGN_MASK + 1) - 1;
-    let objSizeAlign: SIZE_T;
-    let blockSize: SIZE_T;
-    if ((minObjSize & alignMask) != 0) {
-      if (minObjSize < alignMask + 1) {
-        objSizeAlign = alignMask + 1;
-        blockSize = (objSizeAlign * numObjsPerBlock) + alignMask;
-      } else {
-        objSizeAlign = minObjSize + alignMask;
-        blockSize = objSizeAlign * numObjsPerBlock;
-      }
-    } else {
-      objSizeAlign = minObjSize;
-      blockSize = (objSizeAlign * numObjsPerBlock) + alignMask;
-    }
-    myAssert(objSizeAlign <= MAX_ALLOC_SIZE);
+    myAssert(numObjsBlock > 0);
+    const objSizeNoPad = max(objSize, PTR_SIZE);
+    const objSizePow2 = nextPowerOfTwo(objSizeNoPad);
+    const objSizeAlign = max(<SIZE_T>(1) << objAlignLg2, objSizePow2);
+    myAssert(isPowerOfTwo(objSizeAlign));
+    const objAlignMask =  objSizeAlign - 1;
+    const blockSize: SIZE_T = numObjsBlock * objSizeAlign + objAlignMask;
+    myAssert(blockSize <= MAX_ALLOC_SIZE);
     this.blockSize = blockSize;
     this.objSize = objSizeAlign;
-    this.alignMask = alignMask;
-    this.numPerBlock = numObjsPerBlock;
+    this.alignMask = objAlignMask;
+    this.numObjsBlock = numObjsBlock;
     this.blockPtr = NULL_PTR;
     this.freePtr = NULL_PTR;
     this.nextPtr = NULL_PTR;
@@ -64,7 +54,7 @@ import { logi } from './importVars';
     // Note: the previous block ptr is lost, its objs are allocable with the free list
     this.blockPtr = alloc(this.blockSize);
     this.nextPtr = this.blockPtr;
-    this.numLeft = this.numPerBlock;
+    this.numLeft = this.numObjsBlock;
   }
 
   public alloc(): PTR_T {
@@ -97,11 +87,11 @@ import { logi } from './importVars';
 
 }
 
-function newArena(objSize: SIZE_T, numObjPerBlock: u32, objAlignLg2: SIZE_T = alignof<PTR_T>()): ArenaAlloc {
+function newArena(objSize: SIZE_T, numObjsBlock: SIZE_T, objAlignLg2: SIZE_T = alignof<PTR_T>()): ArenaAlloc {
   const arenaSize = getTypeSize<ArenaAlloc>();
   const ptr: PTR_T = alloc(arenaSize);
   const arena = changetype<ArenaAlloc>(ptr);
-  arena.init(objSize, numObjPerBlock, objAlignLg2);
+  arena.init(objSize, numObjsBlock, objAlignLg2);
   return arena;
 }
 

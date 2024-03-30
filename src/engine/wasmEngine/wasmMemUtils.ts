@@ -10,13 +10,12 @@ type WasmMemParams = {
   syncArraySize: number;
   sleepArraySize: number;
   workerHeapSize: number;
-  imagesIndexSize: number;
-  imagesSize: number;
+  texturesIndexSize: number;
+  texturesPixelsSize: number;
   sharedHeapSize: number;
   fontCharsSize: number;
   stringsSize: number;
   workersMemCountersSize: number;
-  inputKeysSize: number;
   hrTimerSize: number;
 };
 
@@ -31,11 +30,10 @@ const enum MemRegionsEnum {
   SLEEP_ARRAY = 'SLEEP_ARRAY',
   FONT_CHARS = 'FONT_CHARS',
   STRINGS = 'STRINGS',
-  IMAGES_INDEX = 'IMAGES_INDEX',
-  IMAGES = 'IMAGES',
+  TEXTURES_INDEX = 'TEXTURES_INDEX',
+  TEXTURES = 'TEXTURES',
   WORKERS_HEAPS = 'WORKERS_HEAPS',
   HEAP = 'HEAP',
-  INPUT_KEYS = 'INPUT_KEYS',
   MEM_COUNTERS = 'MEM_COUNTERS',
   HR_TIMER = 'HR_TIMER',
   START_MEM = 'START_MEM', // for the size/offset of all previous mem regions
@@ -54,8 +52,8 @@ function getMemRegionsSizes(params: WasmMemParams): WasmMemRegionsData {
     rgbaSurface0size,
     rgbaSurface1size,
     numWorkers,
-    imagesIndexSize,
-    imagesSize,
+    texturesIndexSize,
+    texturesPixelsSize,
     workerHeapSize,
     syncArraySize,
     sleepArraySize,
@@ -63,7 +61,6 @@ function getMemRegionsSizes(params: WasmMemParams): WasmMemRegionsData {
     fontCharsSize,
     stringsSize,
     workersMemCountersSize,
-    inputKeysSize,
     hrTimerSize,
   } = params;
 
@@ -76,12 +73,11 @@ function getMemRegionsSizes(params: WasmMemParams): WasmMemRegionsData {
     [MemRegionsEnum.SLEEP_ARRAY]: sleepArraySize,
     [MemRegionsEnum.FONT_CHARS]: fontCharsSize,
     [MemRegionsEnum.STRINGS]: stringsSize,
-    [MemRegionsEnum.IMAGES_INDEX]: imagesIndexSize,
-    [MemRegionsEnum.IMAGES]: imagesSize,
+    [MemRegionsEnum.TEXTURES_INDEX]: texturesIndexSize,
+    [MemRegionsEnum.TEXTURES]: texturesPixelsSize,
     [MemRegionsEnum.WORKERS_HEAPS]: numWorkers * workerHeapSize,
     [MemRegionsEnum.HEAP]: sharedHeapSize,
     [MemRegionsEnum.MEM_COUNTERS]: workersMemCountersSize,
-    [MemRegionsEnum.INPUT_KEYS]: inputKeysSize,
     [MemRegionsEnum.HR_TIMER]: hrTimerSize,
     [MemRegionsEnum.START_MEM]: 0,
   };
@@ -106,12 +102,11 @@ function getMemRegionsOffsets(
     [MemRegionsEnum.SLEEP_ARRAY]: 2,
     [MemRegionsEnum.FONT_CHARS]: 2,
     [MemRegionsEnum.STRINGS]: 2,
-    [MemRegionsEnum.IMAGES_INDEX]: 2,
-    [MemRegionsEnum.IMAGES]: 2,
+    [MemRegionsEnum.TEXTURES_INDEX]: 2,
+    [MemRegionsEnum.TEXTURES]: 2,
     [MemRegionsEnum.WORKERS_HEAPS]: 2,
     [MemRegionsEnum.HEAP]: 6,
     [MemRegionsEnum.MEM_COUNTERS]: 2,
-    [MemRegionsEnum.INPUT_KEYS]: 4,
     [MemRegionsEnum.HR_TIMER]: 3,
     [MemRegionsEnum.START_MEM]: 0,
   };
@@ -122,15 +117,14 @@ function getMemRegionsOffsets(
     // MemRegionsEnum.PALETTE,
     MemRegionsEnum.RGBA_SURFACE_0,
     MemRegionsEnum.RGBA_SURFACE_1,
-    MemRegionsEnum.INPUT_KEYS,
     MemRegionsEnum.HR_TIMER,
     MemRegionsEnum.SYNC_ARRAY,
     MemRegionsEnum.SLEEP_ARRAY,
     MemRegionsEnum.MEM_COUNTERS,
     MemRegionsEnum.FONT_CHARS,
     MemRegionsEnum.STRINGS,
-    MemRegionsEnum.IMAGES_INDEX,
-    MemRegionsEnum.IMAGES,
+    MemRegionsEnum.TEXTURES_INDEX,
+    MemRegionsEnum.TEXTURES,
     MemRegionsEnum.WORKERS_HEAPS,
     MemRegionsEnum.HEAP,
   ];
@@ -168,12 +162,6 @@ function getMemRegionsSizesAndOffsets(
   return [regionsSizes, regionsOffsets];
 }
 
-export type {
-  WasmMemParams,
-  WasmMemRegionsData,
-};
+export type { WasmMemParams, WasmMemRegionsData };
 
-export {
-  MemRegionsEnum,
-  getMemRegionsSizesAndOffsets,
-};
+export { MemRegionsEnum, getMemRegionsSizesAndOffsets };

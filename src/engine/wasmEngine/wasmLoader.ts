@@ -3,6 +3,10 @@ import engineWasm from './wasm/build/asc/engine.wasm';
 import engineExport from './wasm/build/asc/engine';
 import { ascImportImages } from '../../../assets/build/images';
 import { ascImportStrings } from '../../../assets/build/strings';
+import {
+  wasmTexturesIndexFieldSizes,
+  wasmTexturesIndexFieldOffsets,
+} from './wasmMemInitImages';
 
 // TODO
 type wasmBuilderFunc<T> = (
@@ -15,38 +19,32 @@ type wasmBuilderFunc<T> = (
 
 type WasmImports = {
   memory: WebAssembly.Memory;
-
   rgbaSurface0ptr: number;
   rgbaSurface0width: number;
   rgbaSurface0height: number;
-
   // rgbaSurface1ptr: number;
   // rgbaSurface1width: number;
   // rgbaSurface1height: number;
-
   syncArrayPtr: number;
   sleepArrayPtr: number;
   workersHeapPtr: number;
   workerHeapSize: number;
-  heapPtr: number;
+  sharedHeapPtr: number;
   workerIdx: number;
   mainWorkerIdx: number;
   numWorkers: number;
-  bgColor: number;
   // usePalette: number;
-  numImages: number;
-  imagesIndexPtr: number;
-  imagesIndexSize: number;
-  imagesDataPtr: number;
-  imagesDataSize: number;
+  numTextures: number;
+  texturesIndexPtr: number;
+  texturesIndexSize: number;
+  texelsPtr: number;
+  texelsSize: number;
   fontCharsPtr: number;
   fontCharsSize: number;
   stringsDataPtr: number;
   stringsDataSize: number;
   workersMemCountersPtr: number;
   workersMemCountersSize: number;
-  inputKeysPtr: number;
-  inputKeysSize: number;
   hrTimerPtr: number;
   FONT_X_SIZE: number;
   FONT_Y_SIZE: number;
@@ -54,11 +52,17 @@ type WasmImports = {
 
   logi: (v: number) => void;
   logf: (v: number) => void;
+
+  frameColorRGBAPtr: number;
+  texturesPtr: number;
+  mipmapsPtr: number;
 };
 
 type WasmModules = {
   engine: typeof engineExport;
 };
+
+type WasmEngineModule = WasmModules['engine'];
 
 async function loadWasm<T>(
   wasm: wasmBuilderFunc<T>,
@@ -78,6 +82,12 @@ async function loadWasm<T>(
     importVars: {
       ...wasmInput,
       ...otherImpObj,
+    },
+    importTexturesIndexFieldSizes: {
+      ...wasmTexturesIndexFieldSizes,
+    },
+    importTexturesIndexFieldOffsets: {
+      ...wasmTexturesIndexFieldOffsets,
     },
     gen_importImages: {
       ...ascImportImages,
@@ -104,5 +114,5 @@ async function loadWasmModules(imports: WasmImports): Promise<WasmModules> {
   };
 }
 
-export type { WasmImports, WasmModules };
+export type { WasmImports, WasmModules, WasmEngineModule };
 export { loadWasmModules };

@@ -1,16 +1,16 @@
 import { myAssert } from './myAssert';
-import { initSharedHeap } from './heapAlloc';
+import { initSharedHeap } from './sharedHeapAlloc';
 import {
   initMemManager,
   alloc,
   free,
 } from './workerHeapManager';
-// import { ObjectAllocator } from './objectAllocator';
+import { ArenaAlloc, newArena } from './arenaAlloc';
+import { ObjectAllocator } from './objectAllocator';
 import * as utils from './utils';
 import * as draw from './draw';
 import {
-  bgColor,
-  heapPtr,
+  sharedHeapPtr,
   numWorkers,
   mainWorkerIdx,
   workerIdx,
@@ -21,40 +21,65 @@ import {
   rgbaSurface0height,
   syncArrayPtr,
   sleepArrayPtr,
-  inputKeysPtr,
   hrTimerPtr,
+  frameColorRGBAPtr,
+  texturesPtr,
+  mipmapsPtr,
 } from './importVars';
-import { BitImage } from './bitImage';
-import { initImages } from './initImages';
+import { Texture, initTextures, initMipMaps } from './texture';
+import { BitImageRGBA } from './bitImageRGBA';
 // import { DArray, newDArray, deleteDArray } from './darray';
 import { Pointer } from './pointer';
 import { SArray, newSArray } from './sarray';
+import { DArray, newDArray } from './darray';
 import { test } from './test/test';
 import { PTR_T, SIZE_T, NULL_PTR } from './memUtils';
-
-// import { MYIMG, IMG1 } from './gen_importImages';
-// import * as strings from './gen_importStrings';
-
 import {
-  imagesIndexPtr,
-  imagesIndexSize,
-  imagesDataSize,
-  imagesDataPtr,
-  numImages,
-} from './importVars';
-import { stringsDataPtr, stringsDataSize } from './importVars';
-import { FONT_Y_SIZE, fontCharsPtr, fontCharsSize } from './importVars';
+  FrameColorRGBA, 
+  newFrameColorRGBA,
+  // deleteFrameColorRGBA, 
+  MAX_LIGHT_LEVELS,
+  BPP_RGBA,
+  getRedLightTablePtr,
+  getGreenLightTablePtr,
+  getBlueLightTablePtr,
+  getRedFogTablePtr,
+  getGreenFogTablePtr,
+  getBlueFogTablePtr,
+} from './frameColorRGBA';
 
 const syncLoc = utils.getArrElPtr<i32>(syncArrayPtr, workerIdx);
 const sleepLoc = utils.getArrElPtr<i32>(sleepArrayPtr, workerIdx);
 
 const MAIN_THREAD_IDX = mainWorkerIdx;
 
-let images = changetype<SArray<BitImage>>(NULL_PTR);
+let frameColorRGBA = changetype<FrameColorRGBA>(NULL_PTR);
 
-// @ts-ignore: decorator
-@inline function align<T>(): SIZE_T {
-  return alignof<T>();
+let textures = changetype<SArray<Texture>>(NULL_PTR);
+let mipmaps = changetype<SArray<BitImageRGBA>>(NULL_PTR);
+
+function getFrameColorRGBAPtr(): PTR_T {
+  return changetype<PTR_T>(frameColorRGBA);
+}
+
+function getTexturesPtr(): PTR_T {
+  return changetype<PTR_T>(textures);
+}
+
+function getMipMapsPtr(): PTR_T {
+  return changetype<PTR_T>(mipmaps);
+}
+
+function initData(): void {
+  if (workerIdx == MAIN_THREAD_IDX) {
+    frameColorRGBA = newFrameColorRGBA();
+    textures = initTextures();
+    mipmaps = initMipMaps(textures);
+  } else {
+    frameColorRGBA = changetype<FrameColorRGBA>(frameColorRGBAPtr);
+    textures = changetype<SArray<Texture>>(texturesPtr);
+    mipmaps = changetype<SArray<BitImageRGBA>>(mipmapsPtr);
+  }
 }
 
 function init(): void {
@@ -67,20 +92,15 @@ function init(): void {
     // const t1 = <u64>process.hrtime();
     // store<u64>(hrTimerPtr, t1 - t0);
   }
-  initMemManager();
-  images = initImages();
+
   // logi(workerIdx as i32);
-
-  // logi(MYIMG);
-
-  // myAssert(images != null);
-  // const image = images.at(0);
-  // logi(image.Width as i32);
-  // logi(image.Height as i32);
-  // test();
+  initMemManager();
+  initData();
 }
 
 function render(): void {
+
+  // utils.sleep(sleepLoc, 1);
 
   const r = utils.range(workerIdx, numWorkers, rgbaSurface0height);
   const s = <usize>(r >> 32);
@@ -88,22 +108,41 @@ function render(): void {
   // logi(r as i32);
 
   // const t0 = <u64>process.hrtime();
-  draw.clearBg(s, e, 0xff_ff_00_00); // ABGR
+
+  draw.clearBg(s, e, 0xff_00_00_00); // ABGR
+
+  // if (workerIdx == MAIN_THREAD_IDX) {
+    // const color1 = FrameColorRGBA.colorABGR(0xff, 0, 0, 0xff);
+    // for (let l = 0; l < MAX_LIGHT_LEVELS; ++l) {
+    //   const color2 = frameColorRGBA.lightColorABGR(color1, l);
+    //   // const color2 = frameColorRGBA.fogColorABGR(color1, l);
+    //   drawQuad(0, l * 2, 100, 2, color2);
+    // }
+  // }
+
   // const t1 = <u64>process.hrtime();
   // store<u64>(hrTimerPtr, t1 - t0);
 
-  // render image test
-  // const image = images.at(IMG1);
+  // render tex mips test
+  // const tex = textures.at(0);
+  // // const image = mipmaps.at(0);
   // // const byte = load<u8>(image.Ptr);
   // // logi(<i32>byte);
 
+  // const tex = textures.at(0);
   // if (workerIdx == MAIN_THREAD_IDX) {
-  // const minWidth = <usize>Math.min(image.Width, rgbaSurface0width);
-  // for (let i = s; i != e; ++i) {
-  //   let screenPtr: PTR_T = rgbaSurface0ptr + i * rgbaSurface0width * 4;
-  //   const pixels: PTR_T = image.Ptr + i * image.Width * 4;
-  //   memory.copy(screenPtr, pixels, minWidth * 4);
-  // }
+  // // if (workerIdx == 1) {
+  //   const mip = mipmaps.at(tex.gMipIdx(0));
+  //   const minWidth = <SIZE_T>Math.min(mip.Width, rgbaSurface0width);
+  //   const minHeight = <SIZE_T>Math.min(mip.Height, e - s);
+  //   // const imagePitch = <SIZE_T>(1 << image.PitchLg2);
+  //   // logi(minWidth as i32);
+  //   // logi(minHeight as i32);
+  //   for (let i = s; i != s + minHeight; ++i) {
+  //     let screenPtr: PTR_T = rgbaSurface0ptr + i * rgbaSurface0width * BPP_RGBA;
+  //     const texelsRowPtr: PTR_T = mip.Ptr + ((i - s) << mip.Lg2Pitch) * BPP_RGBA;
+  //     memory.copy(screenPtr, texelsRowPtr, mip.Width * 4);
+  //   }
   // }
 
   // if (workerIdx == MAIN_THREAD_IDX) {
@@ -116,8 +155,6 @@ function render(): void {
     //   s++;
     // }
   // }
-
-  // logi(load<u8>(inputKeysPtr));
 }
 
 function run(): void {
@@ -164,19 +201,10 @@ function run(): void {
 //   // logi(fontCharsPtr);
 //   // logi(fontCharsSize);
 //
-//   // logi(usePalette);
-//   // logi(imagesIndexPtr);
-//   // logi(imagesIndexSize);
-//   // logi(imagesDataPtr);
-//   // logi(imagesDataSize);
-//   // logi(numImages);
-//
 //   // logi(MYIMG);
-//   // logi(imagesIndexSize);
 //
 //   // test();
 //   // test images loading
-//   // logi(numImages);
 //   // const images = initImages();
 //   // for (let i = 0; i < images.length(); ++i) {
 //   //   const pixels = images.at(i).pixels;
@@ -230,4 +258,26 @@ function run(): void {
 //   draw.clearBg(s, e, 0xff_00_00_00); // ABGR
 // }
 
-export { init, render, run };
+function drawQuad(x: i32, y: i32, w: i32, h: i32, colorARGB: u32): void {
+  for (let i = 0; i < h; ++i) {
+    const rowPtr = rgbaSurface0ptr + (y + i) * rgbaSurface0width * BPP_RGBA
+    for (let j = 0; j < w; ++j) {
+      const screenPtr = rowPtr + (x + j) * BPP_RGBA;
+      store<u32>(screenPtr, colorARGB);
+    }
+  }
+}
+
+export { 
+  init, render, run,
+  getFrameColorRGBAPtr,
+  getRedLightTablePtr,
+  getGreenLightTablePtr,
+  getBlueLightTablePtr,
+  getRedFogTablePtr,
+  getGreenFogTablePtr,
+  getBlueFogTablePtr,
+
+  getTexturesPtr,
+  getMipMapsPtr,
+};

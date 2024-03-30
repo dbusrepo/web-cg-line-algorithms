@@ -6,7 +6,7 @@ enum AppCommandEnum {
 }
 
 enum PanelIdEnum {
-  ENGINE = 0,
+  ENGINE = 'engine_panel',
 }
 
 type PanelId = `${PanelIdEnum}`;
@@ -18,5 +18,10 @@ enum KeyEventsEnum {
 
 type KeyEvent = `${KeyEventsEnum}`;
 
-export type { KeyEvent, PanelId };
+type EventLog = {
+  event: string;
+  msg: string;
+};
+
+export type { KeyEvent, PanelId, EventLog };
 export { AppCommandEnum, PanelIdEnum, KeyEventsEnum };

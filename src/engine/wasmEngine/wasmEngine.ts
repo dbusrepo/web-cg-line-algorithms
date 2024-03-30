@@ -1,13 +1,13 @@
 import assert from 'assert';
+// import * as utils from './../utils';
+// import { sleep } from '../utils';
 import type { WasmMemParams, WasmMemRegionsData } from './wasmMemUtils';
 import type { WasmModules } from './wasmLoader';
-import * as WasmUtils from './wasmMemUtils';
-import * as initImages from './wasmMemInitImages';
-import * as initStrings from './wasmMemInitStrings';
-import * as initFontChars from './wasmMemInitFontChars';
+import * as wasmUtils from './wasmMemUtils';
+import * as wasmImages from './wasmMemInitImages';
+import * as wasmStrings from './wasmMemInitStrings';
+import * as wasmFontChars from './wasmMemInitFontChars';
 import { AssetManager } from '../assets/assetManager';
-import type { Key } from '../../input/inputManager';
-import { InputManager, keys, keyOffsets } from '../../input/inputManager';
 import { BPP_RGBA } from '../assets/images/bitImageRGBA';
 import type { WasmRunParams } from './wasmRun';
 import { WasmRun } from './wasmRun';
@@ -15,9 +15,6 @@ import type { WasmViews } from './wasmViews';
 import { buildWasmMemViews } from './wasmViews';
 import { FONT_Y_SIZE, fontChars } from '../../../assets/fonts/font';
 import { stringsArrayData } from '../../../assets/build/strings';
-import { EngineWorkerCommandEnum } from '../engineWorker';
-import { EngineWorkerDesc } from '../engineWorker';
-import * as utils from './../utils';
 import { mainConfig } from '../../config/mainConfig';
 import {
   // BPP_PAL,
@@ -39,20 +36,15 @@ import {
 import { fillBackgrnd } from '../gfx/backgrnd';
 
 type WasmEngineParams = {
-  engineCanvas: OffscreenCanvas;
+  imageWidth: number;
+  imageHeight: number;
   assetManager: AssetManager;
-  inputManager: InputManager;
-  engineWorkers: EngineWorkerDesc[];
-  mainWorkerIdx: number;
-  runLoopInWorker: boolean;
+  numWorkers: number;
 };
 
 class WasmEngine {
   private params: WasmEngineParams;
-  private ctx2d: OffscreenCanvasRenderingContext2D;
-  private engineImageData: ImageData;
   private wasmMem: WebAssembly.Memory;
-  private wasmMemParams: WasmMemParams;
   private wasmRegionsSizes: WasmMemRegionsData;
   private wasmRegionsOffsets: WasmMemRegionsData;
   private wasmViews: WasmViews;
@@ -62,60 +54,25 @@ class WasmEngine {
 
   public async init(params: WasmEngineParams) {
     this.params = params;
-    this.initGfx();
     await this.initWasm();
-    this.initInputHandlers();
-  }
-
-  private get2dCtxFromCanvas(canvas: OffscreenCanvas) {
-    const ctx = <OffscreenCanvasRenderingContext2D>(
-      canvas.getContext('2d', {
-        alpha: false,
-        desynchronized: true,
-      })
-    );
-    ctx.imageSmoothingEnabled = false; // no blur, keep the pixels sharpness
-    return ctx;
-  }
-
-  private initGfx() {
-    this.ctx2d = this.get2dCtxFromCanvas(this.params.engineCanvas);
-    this.engineImageData = this.ctx2d.createImageData(
-      this.params.engineCanvas.width,
-      this.params.engineCanvas.height);
-  }
-
-  private initInputHandlers() {
-    const { inputKeys } = this.wasmViews;
-    const keyHandler = (keyOffset: number, state: number) => () => {
-      inputKeys[keyOffset] = state;
-    };
-
-    (Object.entries(keyOffsets) as [Key, number][]).forEach(([key, keyOffset]) => {
-      const keyDownHandler = keyHandler(keyOffset, 1);
-      const keyUpHandler = keyHandler(keyOffset, 0);
-      this.params.inputManager.addKeyHandlers(key, keyDownHandler, keyUpHandler);
-    });
   }
 
   private async initWasm(): Promise<void> {
-    this.initWasmMemParams();
     this.initWasmMemRegions();
     this.allocWasmMem();
-    this.initMemViews();
+    this.wasmViews = buildWasmMemViews(
+      this.wasmMem,
+      this.wasmRegionsOffsets,
+      this.wasmRegionsSizes,
+    );
     this.initWasmAssets();
     await this.initWasmRun();
-    if (this.params.engineWorkers.length) {
-      await this.initEngineWorkers();
-      if (this.params.runLoopInWorker) {
-        this.runWorkersWasmLoop();
-      }
-    }
   }
 
   private allocWasmMem(): void {
-    const startSize = this.wasmRegionsSizes[WasmUtils.MemRegionsEnum.START_MEM];
-    const startOffset = this.wasmRegionsOffsets[WasmUtils.MemRegionsEnum.START_MEM];
+    const startSize = this.wasmRegionsSizes[wasmUtils.MemRegionsEnum.START_MEM];
+    const startOffset =
+      this.wasmRegionsOffsets[wasmUtils.MemRegionsEnum.START_MEM];
     const wasmMemStartTotalSize = startOffset + startSize;
     const { wasmMemStartPages: initial, wasmMemMaxPages: maximum } = mainConfig;
     assert(initial * PAGE_SIZE_BYTES >= wasmMemStartTotalSize);
@@ -133,256 +90,116 @@ class WasmEngine {
     console.log(`wasm mem config start pages: ${initial}`);
   }
 
-  private initWasmMemParams(): void {
+  private get NumTotalWorkers() {
+    return 1 + this.params.numWorkers;
+  }
 
-    const { width: engineImageWidth, height: engineImageHeight } = this.engineImageData
-
-    const numWorkers = this.params.engineWorkers.length + 1;
+  private initWasmMemRegions(): void {
+    const { imageWidth, imageHeight } = this.params;
+    const numTotalWorkers = this.NumTotalWorkers;
 
     // set wasm mem regions sizes
-    this.wasmMemParams = {
+    const wasmMemParams: WasmMemParams = {
       // frameBufferPalSize: 0, // this._cfg.usePalette ? numPixels : 0,
       // paletteSize: 0, // this._cfg.usePalette ? PALETTE_SIZE * PAL_ENTRY_SIZE : 0,
       startOffset: mainConfig.wasmMemStartOffset,
-      rgbaSurface0size: engineImageWidth * engineImageHeight * BPP_RGBA,
+      rgbaSurface0size: imageWidth * imageHeight * BPP_RGBA,
       rgbaSurface1size: 0,
-      syncArraySize: numWorkers * Int32Array.BYTES_PER_ELEMENT,
-      sleepArraySize: numWorkers * Int32Array.BYTES_PER_ELEMENT,
-      numWorkers,
+      syncArraySize: numTotalWorkers * Int32Array.BYTES_PER_ELEMENT,
+      sleepArraySize: numTotalWorkers * Int32Array.BYTES_PER_ELEMENT,
+      numWorkers: numTotalWorkers,
       workerHeapSize: PAGE_SIZE_BYTES * mainConfig.wasmWorkerHeapPages,
       sharedHeapSize: mainConfig.wasmSharedHeapSize,
       fontCharsSize: fontChars.length * FONT_Y_SIZE,
       stringsSize: stringsArrayData.length,
-      imagesIndexSize: initImages.getImagesIndexSize(),
-      imagesSize: this.params.assetManager.ImagesTotalSize,
+      texturesPixelsSize: this.params.assetManager.PixelsDataSize,
+      texturesIndexSize: wasmImages.calcWasmTexturesIndexSize(
+        this.params.assetManager.Textures,
+      ),
       // TODO use 64bit/8 byte counter for mem counters? see wasm workerHeapManager
-      workersMemCountersSize: numWorkers * Uint32Array.BYTES_PER_ELEMENT,
-      inputKeysSize: Object.values(keys).length * Uint8Array.BYTES_PER_ELEMENT,
+      workersMemCountersSize: numTotalWorkers * Uint32Array.BYTES_PER_ELEMENT,
       hrTimerSize: BigUint64Array.BYTES_PER_ELEMENT,
     };
 
-  }
-
-  private initWasmMemRegions(): void {
-    const [sizes, offsets] = WasmUtils.getMemRegionsSizesAndOffsets(this.wasmMemParams);
+    const [sizes, offsets] =
+      wasmUtils.getMemRegionsSizesAndOffsets(wasmMemParams);
     this.wasmRegionsSizes = sizes;
     this.wasmRegionsOffsets = offsets;
 
-    console.log('SIZES: ', JSON.stringify(this.wasmRegionsSizes));
-    console.log('OFFSETS: ', JSON.stringify(this.wasmRegionsOffsets));
+    console.log(
+      'wasm mem regions sizes: ',
+      JSON.stringify(this.wasmRegionsSizes),
+    );
+    console.log(
+      'wasm mem regions offsets: ',
+      JSON.stringify(this.wasmRegionsOffsets),
+    );
     console.log(
       `wasm mem start offset: ${
-        this.wasmRegionsOffsets[WasmUtils.MemRegionsEnum.START_MEM]
+        this.wasmRegionsOffsets[wasmUtils.MemRegionsEnum.START_MEM]
       }`,
     );
     console.log(
       `wasm mem start size: ${
-        this.wasmRegionsSizes[WasmUtils.MemRegionsEnum.START_MEM]
+        this.wasmRegionsSizes[wasmUtils.MemRegionsEnum.START_MEM]
       }`,
     );
   }
 
-  private initMemViews(): void {
-    this.wasmViews = buildWasmMemViews(
-      this.wasmMem,
-      this.wasmRegionsOffsets,
-      this.wasmRegionsSizes,
-    );
-  }
-
   private initWasmAssets(): void {
-    this.initWasmFontChars();
-    this.initWasmStrings();
-    this.initWasmImages();
-  }
-
-  private initWasmFontChars() {
-    initFontChars.copyFontChars2WasmMem(this.wasmViews.fontChars);
-  }
-
-  private initWasmStrings() {
-    initStrings.copyStrings2WasmMem(this.wasmViews.strings);
-  }
-
-  private initWasmImages(): void {
-    initImages.copyImages2WasmMem(
-      this.params.assetManager.Images,
-      this.wasmViews.imagesIndex,
-      this.wasmViews.imagesPixels,
+    wasmFontChars.copyFontChars2WasmMem(this.wasmViews.fontChars);
+    wasmStrings.copyStrings2WasmMem(this.wasmViews.strings);
+    wasmImages.copyTextures2WasmMem(
+      this.params.assetManager.Textures,
+      this.wasmViews.texturesIndex,
+      this.wasmViews.texels,
     );
   }
 
   private async initWasmRun() {
-
-    const { width: engineImageWidth, height: engineImageHeight } = this.engineImageData;
-
     this.wasmRun = new WasmRun();
+
+    const { imageWidth, imageHeight } = this.params;
+
+    const MAIN_WORKER_IDX = 0;
 
     this.wasmRunParams = {
       wasmMem: this.wasmMem,
       wasmMemRegionsSizes: this.wasmRegionsSizes,
       wasmMemRegionsOffsets: this.wasmRegionsOffsets,
       wasmWorkerHeapSize: mainConfig.wasmWorkerHeapPages * PAGE_SIZE_BYTES,
-      mainWorkerIdx: this.params.mainWorkerIdx,
-      workerIdx: this.params.mainWorkerIdx, // main worker here
-      numWorkers: this.params.engineWorkers.length + 1,
-      numImages: this.params.assetManager.Images.length,
-      surface0sizes: [engineImageWidth, engineImageHeight],
+      mainWorkerIdx: MAIN_WORKER_IDX,
+      workerIdx: 0,
+      numWorkers: this.NumTotalWorkers,
+      numTextures: this.params.assetManager.NumTextures, // TODO: rename
+      surface0sizes: [imageWidth, imageHeight],
       surface1sizes: [0, 0], // not used
+      // main thread init these fields in wasm engine
+      frameColorRGBAPtr: 0,
+      texturesPtr: 0,
+      mipmapsPtr: 0,
     };
 
     await this.wasmRun.init(this.wasmRunParams, this.wasmViews);
+
     this.wasmModules = this.wasmRun.WasmModules;
+
+    Atomics.store(this.wasmViews.sleepArr, 0, 0); // main worker idx 0
+    Atomics.store(this.wasmViews.syncArr, 0, 0);
   }
 
-  private async initEngineWorkers() {
-    try {
-      await Promise.all(this.params.engineWorkers.map((engineWorker) => {
-        engineWorker.worker.postMessage({
-          command: EngineWorkerCommandEnum.INIT_WASM,
-          params: {
-            ...this.wasmRunParams,
-            workerIdx: engineWorker.index,
-          },
-        });
-        return new Promise<void>((resolve/*, reject*/) => {
-          // remap onmessage
-          engineWorker.worker.onmessage = ({ data: _ }) => {
-            // TODO: no check for data.status
-            resolve();
-          };
-        });
-      }));
-    } catch (e) {
-      console.log('error initializing wasm in engine workers');
-      console.error(e);
-    }
-  }
-
-  private runWorkersWasmLoop() {
-    assert(this.params.runLoopInWorker);
-    this.params.engineWorkers.forEach(({ worker }) => {
-      worker.postMessage({
-        command: EngineWorkerCommandEnum.RUN_WASM,
-      });
-    });
-  }
-
-  public render() {
-    // TODO:
-    this.syncWorkers();
-    try {
-      this.drawLines();
-      // this.wasmModules.engine.render();
-    } catch (e) {
-      console.error(e);
-    }
-    this.waitWorkers();
-    this.drawFrame();
-    // const views = this.wasmRun.WasmViews;
-    // console.log(views.hrTimer[0]);
-  }
-
-  private drawLines() {
-    // this._wasmRun.wasmModules.engine.run();
-    const { width: frameWidth, height: frameHeight } = this.params.engineCanvas;
-    const { syncArr, sleepArr, rgbaSurface0 } = this.wasmRun.WasmViews;
-    initFrameParams(rgbaSurface0, frameWidth, frameHeight);
-    fillBackgrnd(0xff_00_00_00);
-    // const wIdx = 0;
-    // sleep(sleepArr, wIdx, 16);
-    // console.log('Draw line: ');
-    // drawHLine(10, 80, 20, 0xff_00_00_ff); // ABGR
-    // drawHLine(80, 20, 20, 0xff_00_00_ff);
-    // drawYLine(20, 10, 80, 0xff_00_00_ff);
-    // drawLine(10, 10, 50, 50, 0xff_00_00_ff);
-    // drawLine(50, 50, 10, 10, 0xff_00_00_ff);
-    // drawLine(10, 30, 80, 15, 0xff_00_00_ff);
-    // drawLine(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLine(15, 10, 30, 80, 0xff_ff_00_ff);
-    // drawLine(30, 10, 15, 80, 0xff_00_00_ff);
-
-    // drawLineBase(10, 25, 140, 10, 0xff_ff_ff_ff);
-    // drawLine(10, 25, 140, 10, 0xff_00_00_ff);
-
-    // drawLineBase(10, 25, 140, 10, 0xff_ff_ff_ff);
-    // drawLineBresFloat(10, 25, 140, 10, 0xff_00_00_ff);
-    // drawLineBresFloat(10, 25, 140, 10, 0xff_00_ff_ff);
-    // drawLineBresInt(10, 25, 140, 10, 0xff_00_ff_ff);
-    // drawLineBresInt(10, 25, 140, 20, 0xff_00_ff_ff);
-    // drawLineDDAFixed(10, 25, 140, 20, 0xff_00_00_ff);
-
-    // drawLineDDA(10, 25, 150, 1, 0xff_00_ff_ff);
-    // drawLineBresInt(10, 25, 150, 1, 0xff_00_00_ff);
-    // drawLineBresInt(10, 25, 150, 1, 0xff_00_00_ff);
-    // drawLineDDAFixed(10, 25, 150, 1, 0xff_00_00_ff);
-
-    // drawLineDDA(10, 25, 23, 20, 0xff_00_ff_ff);
-    // drawLineDDAFixed(10, 25, 23, 20, 0xff_00_00_ff);
-
-    // drawLineDDA(20, 10, 30, 15, 0xff_00_ff_ff);
-    // drawLineDDAFixed(20, 10, 30, 15, 0xff_00_00_ff);
-
-    // diff btw dda and bres! -> req fix with 0.0001 in bres err init/test
-    // drawLineBresFloat(10, 15, 80, 30, 0xff_ff_ff_ff);
-    // drawLineDDA(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLineBresFloat(15, 10, 30, 80, 0xff_ff_ff_ff);
-    // drawLineDDA(15, 10, 30, 80, 0xff_00_00_ff);
-
-    // drawLineBresFloat(5, 55, 50, 0, 0xff_ff_ff_ff);
-    // drawLineDDA(5, 55, 50, 0, 0xff_00_00_ff);
-
-    // drawLineBresFloat(140, 10, 10, 25, 0xff_00_00_ff);
-    // drawLineDDA(140, 10, 10, 25, 0xff_00_00_ff);
-    // drawLineBresInt(140, 10, 10, 25, 0xff_00_00_ff);
-
-    // 2 points:
-    // drawLineBresFloat(5, 55, 5, 55, 0xff_00_00_ff);
-    // drawLineDDA(50, 0, 50, 0, 0xff_00_00_ff);
-
-    // drawLineBresInt(10, 15, 80, 30, 0xff_ff_ff_ff);
-    // drawLineBresFloat(10, 15, 80, 30, 0xff_00_ff_ff);
-    // drawLineDDAFixed(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLineDDA(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLineBresFloat(15, 10, 30, 80, 0xff_ff_ff_ff);
-    // drawLineDDA(15, 10, 30, 80, 0xff_00_00_ff);
-
-    // drawLineBresInt(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLineBresIntBi(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLineBresIntBiSym2(10, 15, 80, 30, 0xff_00_00_ff);
-    // drawLineBresIntBiSym(10, 15, 80, 30, 0xff_00_ff_ff);
-
-    // drawLineBresInt(45, 10, 70, 80, 0xff_00_ff_ff);
-    // drawLineBresIntBiSym(45, 10, 70, 80, 0xff_00_00_ff);
-    // drawLineBresInt(45, 10, 70, 80, 0xff_00_00_ff);
-    // drawLineBresIntBiSym(45, 10, 70, 80, 0xff_00_ff_ff);
-    // drawLineBresIntBiSym2(45, 10, 70, 80, 0xff_00_00_ff);
-    // drawLineBresIntBi(45, 10, 70, 80, 0xff_00_ff_ff);
-
-    // vert
-    drawLineBresInt(15, 10, 30, 80, 0xff_ff_ff_ff);
-    drawLineBresFloat(15, 10, 30, 80, 0xff_00_ff_ff);
-    // drawLineDDA(15, 10, 30, 80, 0xff_00_ff_ff);
-    // drawLineDDAFixed(15, 10, 30, 80, 0xff_00_00_ff);
-  }
-
-  public syncWorkers() {
-    for (let i = 1; i <= this.params.engineWorkers.length; ++i) {
-      utils.syncStore(this.wasmViews.syncArr, i, 1);
-      utils.syncNotify(this.wasmViews.syncArr, i);
-    }
-  }
-
-  public waitWorkers() {
-    for (let i = 1; i <= this.params.engineWorkers.length; ++i) {
-      utils.syncWait(this.wasmViews.syncArr, i, 1);
-    }
-  }
-
-  public drawFrame() {
-    this.engineImageData.data.set(this.wasmViews.rgbaSurface0);
-    this.ctx2d.putImageData(this.engineImageData, 0, 0);
-  }
+  // public render() {
+  //   this.syncWorkers();
+  //   try {
+  //     this.wasmModules.engine.render();
+  //   } catch (ex) {
+  //     console.error(ex);
+  //     throw ex;
+  //   }
+  //   this.waitWorkers();
+  //   // const views = this.wasmRun.WasmViews;
+  //   // console.log(views.hrTimer[0]);
+  // }
 
   public get WasmRun(): WasmRun {
     return this.wasmRun;
@@ -392,8 +209,8 @@ class WasmEngine {
     return this.wasmMem;
   }
 
-  public get WasmMemParams(): WasmMemParams {
-    return this.wasmMemParams;
+  public get WasmRunParams(): WasmRunParams {
+    return this.wasmRunParams;
   }
 
   public get WasmRegionsSizes(): WasmMemRegionsData {
@@ -407,14 +224,10 @@ class WasmEngine {
   public get WasmModules(): WasmModules {
     return this.wasmModules;
   }
-  
-  get WasmViews(): WasmViews {
+
+  public get WasmViews(): WasmViews {
     return this.wasmViews;
   }
-
-  // public get ImageData(): ImageData {
-  //   // TODO:
-  // }
 }
 
 export type { WasmEngineParams };
