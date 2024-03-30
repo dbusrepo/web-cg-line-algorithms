@@ -22,7 +22,6 @@ import {
   // PALETTE_SIZE,
   PAGE_SIZE_BYTES,
 } from '../../common';
-import { initFrameParams } from '../gfx/frameParams';
 import {
   drawLineBresIntBi,
   drawLineBresIntBiSym2,
@@ -33,7 +32,6 @@ import {
   drawLineDDAFixed,
   drawLine,
 } from '../gfx/lines';
-import { fillBackgrnd } from '../gfx/backgrnd';
 
 type WasmEngineParams = {
   imageWidth: number;

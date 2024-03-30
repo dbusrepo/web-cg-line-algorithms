@@ -1,3 +1,3 @@
-# Graphics web project
+# Line drawing algorithms
 
-Base project for graphics experiments with web techs
+Graphics experiments with line algorithms

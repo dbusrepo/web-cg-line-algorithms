@@ -33,6 +33,8 @@ import {
   FrameColorRGBAWasm,
   getFrameColorRGBAWasmView,
 } from '../engine/wasmEngine/frameColorRGBAWasm';
+import type { LineDrawingParams } from '../engine/lineDrawing';
+import { LineDrawing } from '../engine/lineDrawing';
 
 type AppWorkerParams = {
   engineCanvas: OffscreenCanvas;
@@ -79,6 +81,8 @@ class AppWorker {
   private mouseMoveUp: InputAction;
   private mouseMoveDown: InputAction;
 
+  private lineDrawing: LineDrawing;
+
   public async init(params: AppWorkerParams): Promise<void> {
     this.params = params;
     this.initGfx();
@@ -88,7 +92,16 @@ class AppWorker {
     await this.initAuxWorkers();
     this.initTextures();
     this.initFrameBuf();
+    this.initLineDrawing();
     // this.wasmEngineModule.render();
+  }
+
+  private initLineDrawing() {
+    this.lineDrawing = new LineDrawing();
+    const lineDrawingParams: LineDrawingParams = {
+      wasmRun: this.wasmRun,
+    };
+    this.lineDrawing.init(lineDrawingParams);
   }
 
   private initFrameBuf() {
@@ -336,30 +349,6 @@ class AppWorker {
     let isRunning: boolean;
     let isPaused: boolean;
 
-    const mainLoopInit = () => {
-      lastFrameStartTime = lastStatsTime = renderThen = performance.now();
-      frameTimeMsArr = new Float64Array(AppWorker.FRAME_TIMES_ARR_LEN);
-      updTimeAcc = 0;
-      renderTimeAcc = 0;
-      elapsedTimeMs = 0;
-      timeMsSinceLastFrameArr = new Float64Array(
-        AppWorker.TIMES_SINCE_LAST_FRAME_ARR_LEN,
-      );
-      frameCnt = 0;
-      frameTimeCnt = 0;
-      timeLastFrameCnt = 0;
-      statsTimeAcc = 0;
-      fpsArr = new Float32Array(AppWorker.STATS_ARR_LEN);
-      upsArr = new Float32Array(AppWorker.STATS_ARR_LEN);
-      statsCnt = 0;
-      resync = false;
-      updateCnt = 0;
-      renderCnt = 0;
-      isRunning = true;
-      isPaused = false;
-      requestAnimationFrame(frame);
-    };
-
     const begin = () => {
       frameStartTimeMs = performance.now();
       timeSinceLastFrameMs = frameStartTimeMs - lastFrameStartTime;
@@ -378,14 +367,6 @@ class AppWorker {
         timeMsSinceLastFrameArr,
         timeLastFrameCnt,
       );
-    };
-
-    const frame = () => {
-      requestAnimationFrame(frame);
-      begin();
-      update();
-      render();
-      stats();
     };
 
     const update = () => {
@@ -413,19 +394,20 @@ class AppWorker {
       }
     };
 
+    const saveFrameTime = () => {
+      const frameTimeMs = performance.now() - frameStartTimeMs;
+      frameTimeMsArr[frameTimeCnt++ % frameTimeMsArr.length] = frameTimeMs;
+    };
+
     const render = () => {
       this.syncWorkers();
       // this.clearBg();
-      this.wasmEngineModule.render();
+      // this.wasmEngineModule.render();
+      this.lineDrawing.draw();
       this.waitWorkers();
       this.drawFrame();
       saveFrameTime();
       renderCnt++;
-    };
-
-    const saveFrameTime = () => {
-      const frameTimeMs = performance.now() - frameStartTimeMs;
-      frameTimeMsArr[frameTimeCnt++ % frameTimeMsArr.length] = frameTimeMs;
     };
 
     const stats = () => {
@@ -460,6 +442,38 @@ class AppWorker {
           params: statsValues,
         });
       }
+    };
+
+    const frame = () => {
+      requestAnimationFrame(frame);
+      begin();
+      update();
+      render();
+      stats();
+    };
+
+    const mainLoopInit = () => {
+      lastFrameStartTime = lastStatsTime = renderThen = performance.now();
+      frameTimeMsArr = new Float64Array(AppWorker.FRAME_TIMES_ARR_LEN);
+      updTimeAcc = 0;
+      renderTimeAcc = 0;
+      elapsedTimeMs = 0;
+      timeMsSinceLastFrameArr = new Float64Array(
+        AppWorker.TIMES_SINCE_LAST_FRAME_ARR_LEN,
+      );
+      frameCnt = 0;
+      frameTimeCnt = 0;
+      timeLastFrameCnt = 0;
+      statsTimeAcc = 0;
+      fpsArr = new Float32Array(AppWorker.STATS_ARR_LEN);
+      upsArr = new Float32Array(AppWorker.STATS_ARR_LEN);
+      statsCnt = 0;
+      resync = false;
+      updateCnt = 0;
+      renderCnt = 0;
+      isRunning = true;
+      isPaused = false;
+      requestAnimationFrame(frame);
     };
 
     await this.runAuxWorkers();

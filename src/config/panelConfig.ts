@@ -24,8 +24,8 @@ const panelConfig = {
   // canvasWidth: 640,
   // canvasHeight: 480,
 
-  canvasWidth: 800,
-  canvasHeight: 600,
+  canvasWidth: 1024,
+  canvasHeight: 768,
 
   // canvasWidth: 1024,
   // canvasHeight: 768,

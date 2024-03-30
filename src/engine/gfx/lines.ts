@@ -1,5 +1,35 @@
 import assert from 'assert';
-import { frameParams } from './frameParams';
+
+type DrawParams = {
+  buf8: Uint8ClampedArray;
+  buf32: Uint32Array;
+  width: number;
+  height: number;
+};
+
+// eslint-disable-next-line import/no-mutable-exports
+let frameParams: DrawParams;
+
+function initFrameParams(
+  buffer: Uint8ClampedArray,
+  width: number,
+  height: number,
+) {
+  frameParams = {
+    buf8: buffer,
+    buf32: new Uint32Array(
+      buffer.buffer,
+      0,
+      buffer.byteLength / Int32Array.BYTES_PER_ELEMENT,
+    ),
+    width,
+    height,
+  };
+}
+
+function fillBackgrnd(color: number) {
+  frameParams.buf32.fill(color);
+}
 
 function drawPixel(x: number, y: number, color: number) {
   frameParams.buf32[y * frameParams.width + x] = color | 0;
@@ -325,7 +355,6 @@ function drawLineDDAFixed(
   }
 }
 
-
 function drawLineBresIntBiSym(
   x0: number,
   y0: number,
@@ -348,7 +377,7 @@ function drawLineBresIntBiSym(
       y1 = t;
       dy = -dy;
     }
-    assert(adx + 1 >= 2);
+    // assert(adx + 1 >= 2);
     const frameBuf = frameParams.buf32;
     const { width } = frameParams;
     const yOffs = dy > 0 ? width : -width;
@@ -432,7 +461,7 @@ function drawLineBresIntBiSym2(
       y1 = t;
       dy = -dy;
     }
-    assert(adx + 1 >= 2);
+    // assert(adx + 1 >= 2);
     const frameBuf = frameParams.buf32;
     const { width } = frameParams;
     const yOffs = dy > 0 ? width : -width;
@@ -473,7 +502,7 @@ function drawLineBresIntBiSym2(
       y1 = t;
       dx = -dx;
     }
-    assert(ady + 1 >= 2);
+    // assert(ady + 1 >= 2);
     const frameBuf = frameParams.buf32;
     const { width } = frameParams;
     const xOffs = dx > 0 ? 1 : -1;
@@ -530,7 +559,7 @@ function drawLineBresIntBi(
       y1 = t;
       dy = -dy;
     }
-    assert(adx + 1 >= 2);
+    // assert(adx + 1 >= 2);
     const frameBuf = frameParams.buf32;
     const { width } = frameParams;
     const yOffs = dy > 0 ? width : -width;
@@ -579,7 +608,7 @@ function drawLineBresIntBi(
       y1 = t;
       dy = -dy;
     }
-    assert(ady + 1 >= 2);
+    // assert(ady + 1 >= 2);
     const frameBuf = frameParams.buf32;
     const { width } = frameParams;
     const xOffs = dx > 0 ? 1 : -1;
@@ -647,8 +676,10 @@ function drawLine(
 }
 
 export {
+  initFrameParams,
+  fillBackgrnd,
   drawLineBresIntBi,
-  drawLineBresIntBiSym2,
+  drawLineBresIntBiSym2, // TODO: check
   drawLineBresIntBiSym,
   drawLineBresInt,
   drawLineBresFloat,
